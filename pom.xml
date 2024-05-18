@@ -9,20 +9,22 @@
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
 		<version>31.1.0</version>
+
 		<relativePath />
 	</parent>
 
-	<groupId>com.mycompany</groupId>        <!-- FIXME: Your organization groupId here -->
-	<artifactId>Process_Pixels</artifactId> <!-- FIXME: Your project artifactId here   -->
+
+	<groupId>LSU.BE</groupId>
+	<artifactId>TEM-Collagen-Analysis-Plugin</artifactId>
 	<version>0.1.0-SNAPSHOT</version>
 
-	<name>Process Pixels</name>                                                   <!-- FIXME: Your project name here          -->
-	<description>A Maven project implementing an ImageJ 1.x plugin.</description> <!-- FIXME: Your project description here   -->
-	<url>https://mycompany.com/imagej/process-pixels/</url>                       <!-- FIXME: Your project website here       -->
-	<inceptionYear>2012</inceptionYear>                                           <!-- FIXME: Your project starting year here -->
+	<name>TEM-Collagen-Analysis-Plugin</name>                                               <!-- FIXME: Your project name here          -->
+	<description>An imageJ plugin to analyze collagen fibrils</description> <!-- FIXME: Your project description here   -->
+	<url>https://tywats.com</url>                   <!-- FIXME: Your project website here       -->
+	<inceptionYear>2024</inceptionYear>                                        <!-- FIXME: Your project starting year here -->
 	<organization>
-		<name>My Company</name>           <!-- FIXME: Your organization name here    -->
-		<url>https://mycompany.com/</url> <!-- FIXME: Your organization website here -->
+		<name>LSU BE</name>           <!-- FIXME: Your organization name here    -->
+		<url>https://www.lsu.edu/eng/bae/index.php</url> <!-- FIXME: Your organization website here -->
 	</organization>
 	<licenses>
 		<license>                         <!-- FIXME: Your license here -->
@@ -33,11 +35,11 @@
 	</licenses>
 
 	<developers>
-		<!-- See https://imagej.net/contribute/governance#scijava-team-roles -->
+		<!-- See https://imagej.net/Team -->
 		<developer>
-			<id>octocat</id>                                          <!-- FIXME: Your GitHub handle here -->
-			<name>Noma Onomatopoeia</name>                            <!-- FIXME: Your name here          -->
-			<url>https://mycompany.com/people/noma-onomatopoeia</url> <!-- FIXME: Your website here       -->
+			<id>Ty-Watson</id>                                          <!-- FIXME: Your GitHub handle here -->
+			<name>Ty Watson</name>                            <!-- FIXME: Your name here          -->
+			<url>https://tywats.com</url> <!-- FIXME: Your website here       -->
 			<roles>
 				<role>founder</role>
 				<role>lead</role>
@@ -54,6 +56,7 @@
 			<name>None</name>
 		</contributor>
 	</contributors>
+
 
 	<mailingLists>
 		<mailingList>
@@ -77,16 +80,213 @@
 	</ciManagement>
 
 	<properties>
-		<package-name>com.mycompany.imagej</package-name>                   <!-- FIXME: Your project package prefix here -->
-		<main-class>com.mycompany.imagej.Process_Pixels</main-class>        <!-- FIXME: Your project main class here, or delete for none -->
+		<package-name>CollagenAnalysis</package-name>                   <!-- FIXME: Your project package prefix here -->
+		<main-class>CollagenAnalysis.CollagenAnalysisPlugin</main-class>        <!-- FIXME: Your project main class here, or delete for none -->
 		<license.licenseName>cc0</license.licenseName>                      <!-- FIXME: Your license-maven-plugin license code here -->
 		<license.copyrightOwners>My Company, Inc.</license.copyrightOwners> <!-- FIXME: Your organization legal entity name here -->
+		<scijava.app.directory>/Applications/Fiji.app</scijava.app.directory>
 	</properties>
+
+	<repositories>
+		<repository>
+			<id>scijava.public</id>
+			<url>https://maven.scijava.org/content/groups/public</url>
+		</repository>
+		<repository>
+			<id>imagej.public</id>
+			<url>https://maven.imagej.net/content/groups/public</url>
+		</repository>
+		<!--		<repository>-->
+		<!--			<id>osgeo</id>-->
+		<!--			<name>OSGeo Release Repository</name>-->
+		<!--			<url>https://repo.osgeo.org/repository/release/</url>-->
+		<!--			<releases>-->
+		<!--				<enabled>true</enabled>-->
+		<!--			</releases>-->
+		<!--			<snapshots>-->
+		<!--				<enabled>false</enabled>-->
+		<!--			</snapshots>-->
+		<!--		</repository>-->
+
+
+	</repositories>
 
 	<dependencies>
 		<dependency>
-			<groupId>net.imagej</groupId>
-			<artifactId>ij</artifactId>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-ij</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>imagej</artifactId>
+			<version>2.11.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-math-parent</artifactId>
+			<version>4.0-beta1</version>
+			<type>pom</type>
+		</dependency>
+		<dependency>
+			<groupId>gov.nist.math</groupId>
+			<artifactId>jama</artifactId>
+			<version>1.0.3</version>
+		</dependency>
+		<dependency>
+			<groupId>de.alsclo</groupId>
+			<artifactId>voronoi-java</artifactId>
+			<version>1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.haifengl</groupId>
+			<artifactId>smile-core</artifactId>
+			<version>3.0.3</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.haifengl</groupId>
+			<artifactId>smile-base</artifactId>
+			<version>3.0.3</version>
+		</dependency>
+		<dependency>
+			<groupId>org.tinfour</groupId>
+			<artifactId>TinfourCore</artifactId>
+			<version>2.1.7</version>
+		</dependency>
+
 	</dependencies>
+	<build>
+		<plugins>
+			<!--			<plugin>-->
+			<!--				<groupId>org.apache.maven.plugins</groupId>-->
+			<!--				<artifactId>maven-dependency-plugin</artifactId>-->
+			<!--				<version>3.6.1</version>-->
+			<!--				<configuration>-->
+			<!--					<outputDirectory>${project.build.directory}/lib</outputDirectory>-->
+			<!--					<excludeTransitive>false</excludeTransitive>-->
+			<!--					<stripVersion>false</stripVersion>-->
+			<!--				</configuration>-->
+			<!--				<executions>-->
+			<!--					<execution>-->
+			<!--						<id>copy-dependencies</id>-->
+			<!--						<phase>package</phase>-->
+			<!--						<goals>-->
+			<!--							<goal>copy-dependencies</goal>-->
+			<!--						</goals>-->
+			<!--					</execution>-->
+			<!--				</executions>-->
+			<!--			</plugin>-->
+			<!--			&lt;!&ndash; Add LIB folder to classPath &ndash;&gt;-->
+			<!--			<plugin>-->
+			<!--				<groupId>org.apache.maven.plugins</groupId>-->
+			<!--				<artifactId>maven-jar-plugin</artifactId>-->
+			<!--				<version>2.4</version>-->
+			<!--				<configuration>-->
+			<!--					<archive>-->
+			<!--						<manifest>-->
+			<!--							<addClasspath>true</addClasspath>-->
+			<!--							<classpathPrefix>lib/</classpathPrefix>-->
+			<!--						</manifest>-->
+			<!--					</archive>-->
+			<!--				</configuration>-->
+			<!--			</plugin>-->
+			<!--			<plugin>-->
+			<!--				<groupId>org.apache.maven.plugins</groupId>-->
+			<!--				<artifactId>maven-assembly-plugin</artifactId>-->
+			<!--				<version>3.7.1</version>-->
+			<!--				<executions>-->
+			<!--					<execution>-->
+			<!--						<phase>package</phase>-->
+			<!--						<goals><goal>single</goal></goals>-->
+			<!--						<configuration>-->
+			<!--							<descriptors>-->
+			<!--								<descriptor>src/main/assembly/assembly.xml</descriptor>-->
+			<!--							</descriptors>-->
+			<!--						</configuration>-->
+			<!--					</execution>-->
+			<!--				</executions>-->
+			<!--				<configuration>-->
+			<!--					<descriptorRefs>-->
+			<!--						<descriptorRef>jar-with-dependencies</descriptorRef>-->
+			<!--					</descriptorRefs>-->
+			<!--				</configuration>-->
+			<!--			</plugin>-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>3.5.3</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes>
+									<include>de.alsclo:voronoi-java</include>
+									<include>com.github.haifengl:smile-core</include>
+									<include>com.github.haifengl:smile-base</include>
+									<include>org.tinfour:TinfourCore</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>com.github.haifengl:smile-core</artifact>
+									<includes>
+										<include>smile/classification/**</include>
+									</includes>
+								</filter>
+								<filter>
+									<artifact>com.github.haifengl:smile-base</artifact>
+									<includes>
+										<include>smile/neighbor/**</include>
+										<include>smile/math/**</include>
+									</includes>
+								</filter>
+								<!--								<filter>-->
+								<!--									<artifact>org.tinfour:TinfourCore</artifact>-->
+								<!--									<includes>-->
+								<!--										<include>tinfour/interpolation/**</include>-->
+								<!--										<include>tinfour/standard/**</include>-->
+								<!--									</includes>-->
+								<!--								</filter>-->
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>CollagenAnalysis.CollagenAnalysisPlugin</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>3.2.0</version>
+				<executions>
+					<execution>
+						<id>copy-plugin-to-imagej</id>
+						<phase>install</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${scijava.app.directory}/plugins</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${project.build.directory}</directory>
+									<includes>
+										<include>${project.build.finalName}.jar</include>
+									</includes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+		</plugins>
+	</build>
 </project>
