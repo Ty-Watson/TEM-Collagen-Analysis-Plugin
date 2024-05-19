@@ -21,6 +21,7 @@ import smile.neighbor.Neighbor;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import static CollagenAnalysis.ImageProcessingUtils.*;
 import static java.awt.Color.cyan;
@@ -54,36 +55,17 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
     @Override
     public void run(ImageProcessor preProcessProcessor) {
-        //new ij.ImageJ();
-        //Toolbar toolbar = Toolbar.getInstance();
 
-        // Set the toolbar to the polygon tool
-        //toolbar.setTool(Toolbar.POLYGON);
-//        org.scijava.tool.Tool tool = ij.tool().getTool("polygon");
-//
-//        ij.tool().setActiveTool(tool);
-//        Dataset dataset = (Dataset) imageDisplay.getActiveView().getData();
-//        if (dataset == null) {
-//            uiService.showDialog("No image open", DialogPrompt.MessageType.ERROR_MESSAGE);
-//            return;
-//        }
-//
-//        // Convert Dataset to ImagePlus
-//        ImagePlus imp = convertService.convert(dataset, ImagePlus.class);
-//        // Ask the user to draw a line representing the scale bar
-//        uiService.showDialog("Draw a line representing the scale bar and press OK.", DialogPrompt.MessageType.INFORMATION_MESSAGE);
-//        if (imp == null) {
-//            uiService.showDialog("No image open", DialogPrompt.MessageType.ERROR_MESSAGE);
-//            return;
-//        }
-//        imp.show();
-//        this.progressBar = ij.ui().getDefaultUI().getStatusBar();
 
-        //ImageProcessor preProcessedImage = imp.getProcessor();
+        ImagePlus imp = IJ.getImage();
+        if (imp == null) {
+            IJ.showMessage("No image open");
+            return;
+        }
 
-        //ImageProcessor ip = ipo.resize((int) (ipo.getWidth() * scaleFactor), (int) (ipo.getHeight() * scaleFactor));
+
         ImageManager imageManager = new ImageManager(preProcessProcessor);
-        double d = imageManager.DrawScaleBar(imp);
+        imageManager.DrawScaleBar(imp);
         imageManager.scaleDown();
         ImageProcessor ip = imageManager.getProcessor();
         ImagePlus originalImgScaled = new ImagePlus("OrignalImgScaled", ip);
@@ -228,6 +210,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         //drawBoundries(boundryIp, post_all);
 
+        IJ.showStatus("Assigning Clusters");
         int[] clusterAssignments = assignEachFibrilPixelToFibril(fibrilPixels.size(), convertedCentroids.length, post_fibril);
 
 
@@ -241,7 +224,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 //        new ImagePlus("Clusters check", clusterColorsProcessor).show();
 
 
-
+        IJ.showStatus("Preparing Overlayed Images");
 
         OverlayManager.overlayCentroids(contour, gmm.getMus(), Color.red.getRGB()); // gmm centroids red
         OverlayManager.overlayCentroids(contour, convertedCentroids, Color.magenta.getRGB()); // voronoi centroids magenta
@@ -266,6 +249,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         resultImage2.show();
         resultImage3.show();
 
+        IJ.showStatus("Fitting Ellipses");
         EllipseFitting ef = new EllipseFitting();
         ef.fitEllipses(fibrilPixels, convertedCentroids.length, clusterAssignments);
         ImageProcessor ellipseP = imgAfterGausFiltering.getProcessor().duplicate().convertToColorProcessor();
@@ -276,8 +260,28 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
 
         //POST PROCESSING
+        IJ.showStatus("Post Processing...");
 
-        int nanometers_over_pixels = 500/626;
+        double nanometers_over_pixels = imageManager.getConversionFactor();
+        int scale = imageManager.getScale();
+
+        ArrayList<double[]> radiusPix = ef.getRadius_pix();
+        ArrayList<double[]> x_ellipse = ef.getxEllipses();
+        ArrayList<double[]> y_ellipse = ef.getyEllipses();
+        double[][] mus = gmm.getMus();
+
+
+        radiusPix.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
+        x_ellipse.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
+        y_ellipse.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
+        Arrays.stream(mus).forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
+
+
+        double[] area_pix2 = computeFibrilArea(post_fibril, scale, mus.length);
+        Arrays.setAll(area_pix2, i -> area_pix2[i] * Math.pow(nanometers_over_pixels, 2));
+
+
+
     }
 
     private boolean showDialog() {
@@ -320,9 +324,8 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         new ImageJ();
 
         // open the Clown sample
-        ImagePlus image = IJ.openImage("/Users/tywatson/development/repos/Rego-Imagej-Plugin/testimages/Adventitia_RIRII.tif");
+        ImagePlus image = IJ.openImage("/Users/tywatson/development/repos/Rego-Imagej-Pluggin/testimages/Adventitia_RIRII.tif");
         image.show();
-
         // run the plugin
         IJ.runPlugIn(clazz.getName(), "");
     }

@@ -15,11 +15,15 @@ import ij.process.ImageStatistics;
 
 import java.awt.*;
 
+import static CollagenAnalysis.ImageProcessingUtils.calculateDistance;
+
 public class ImageManager {
     private int scale = 1;
     private ImageProcessor ip;
     private int height;
     private int width;
+
+    private double  conversionFactor;
 
     public ImageManager(ImageProcessor ip){
         this.ip = ip;
@@ -41,24 +45,35 @@ public class ImageManager {
         return ip;
     }
 
-    public double DrawScaleBar(ImagePlus imp){
-        GenericDialog gd = new GenericDialog("Draw scale bar");
-        gd.addMessage("Draw a line to represent the scale");
-        gd.showDialog();
-        RoiManager rm = RoiManager.getRoiManager();
-        if(rm == null){
-            rm = new RoiManager();
-        }
-        imp.setRoi(rm.getRoi(0));
+    public void DrawScaleBar(ImagePlus imp){
+        //TODO make a loop if fail first time
+        WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Draw a line and click OK.");
+        wfud.show();
+
         Roi roi = imp.getRoi();
         if (roi == null || !(roi instanceof Line)) {
             IJ.showMessage("Error", "Please draw a line ROI and try again.");
-            return 0;
+            return;
         }
         Line line = (Line) roi;
-        double lengthInPixels = line.getLength();
-        return lengthInPixels;
+        System.out.println("Line Coordinates: X1 = " + line.x1d + ", Y1 = " + line.y1d + ", X2 = " + line.x2d + ", Y2 = " + line.y2d);
+        //double lengthInPixels = line.getLength();
+        double lengthInPixels = calculateDistance(line.x1d, line.x2d, line.y1d, line.y2d);
 
+        // Ask the user to enter the real-world length in nanometers
+        GenericDialog gd = new GenericDialog("Enter Scale Bar Length");
+        gd.addNumericField("Length (nm):", 100, 0);
+        gd.showDialog();
+        if (gd.wasCanceled()) {
+            return;
+        }
+        double realWorldLengthInNm = gd.getNextNumber();
+        if (Double.isNaN(realWorldLengthInNm) || realWorldLengthInNm <= 0) {
+            IJ.showMessage("Error", "Invalid number entered.");
+            return;
+        }
+
+        conversionFactor = realWorldLengthInNm / lengthInPixels;
 
     }
     public ImageProcessor excludeRegions(){
@@ -127,5 +142,9 @@ public class ImageManager {
         impExt.changes = false;
         impExt.close();
         return processorWithExcludedRegions;
+    }
+
+    public double getConversionFactor() {
+        return conversionFactor;
     }
 }

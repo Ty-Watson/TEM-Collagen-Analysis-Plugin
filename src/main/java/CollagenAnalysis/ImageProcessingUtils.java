@@ -19,6 +19,17 @@ import java.io.*;
 import java.util.ArrayList;
 
 public class ImageProcessingUtils {
+    public static double[] computeFibrilArea(double[][] postFibril, int scale, int fibrilCount) {
+        double[] areaPix2 = new double[fibrilCount];
+
+        for (int i = 0; i < fibrilCount; i++) {
+            for(int j = 0; j < postFibril[i].length; j++) {
+                areaPix2[i] += postFibril[i][j];
+            }
+            areaPix2[i] *= Math.pow(scale, 2);
+        }
+        return areaPix2;
+    }
     public static int[] assignEachFibrilPixelToFibril(int fibrilPixelsLength, int fibrilCentroidsLength, double[][] post_fibril){
         int[] clusterAssignments = new int[fibrilPixelsLength];
 
@@ -649,9 +660,9 @@ public class ImageProcessingUtils {
 //        }
 //
 //    }
-    //double calculateDistance(double[] p1, double[] c1) {
-//        return Math.sqrt(Math.pow(p1[0] - c1[0], 2) + Math.pow(p1[1] - c1[1], 2));
-//    }
+    public static double calculateDistance(double x1, double x2, double y1, double y2) {
+        return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
+    }
 //
 //    public double[][] computeCovarianceMatrix(double[][] points, double[] centroid) {
 //        double varX = 0.0;

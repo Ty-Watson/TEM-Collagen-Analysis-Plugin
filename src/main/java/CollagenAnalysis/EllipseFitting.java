@@ -143,4 +143,8 @@ public class EllipseFitting {
     public ArrayList<double[]> getyEllipses() {
         return yEllipses;
     }
+
+    public ArrayList<double[]> getRadius_pix() {
+        return radius_pix;
+    }
 }
