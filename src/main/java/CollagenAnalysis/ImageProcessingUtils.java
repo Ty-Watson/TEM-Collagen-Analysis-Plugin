@@ -257,17 +257,17 @@ public class ImageProcessingUtils {
 
         double avg = sum / count;
 
-        ImagePlus testimg = new ImagePlus("Test value",test);
-        testimg.show();
+//        ImagePlus testimg = new ImagePlus("Test value",test);
+//        testimg.show();
 
         ImagePlus filteredImg = new ImagePlus("Filtered Img",ip);
-        filteredImg.show();
+//        filteredImg.show();
         return filteredImg;
     }
 
-    public static ImagePlus binarizeUsingOtsu(FloatProcessor fp) {
+    public static ByteProcessor binarizeUsingOtsu(FloatProcessor fp) {
         // Convert FloatProcessor to ByteProcessor for histogram calculation
-        ByteProcessor bp = fp.convertToByteProcessor();
+        ByteProcessor bp = fp.duplicate().convertToByteProcessor();
 
         // Calculate histogram
         int[] histogram = bp.getHistogram();
@@ -281,15 +281,13 @@ public class ImageProcessingUtils {
             for (int x = 0; x < bp.getWidth(); x++) {
                 float value =bp.getPixel(x, y);
                 if (value <= otsuThreshold) {
-                    fp.setf(x, y, 0.0f); // Set pixels below the threshold to 0
+                    bp.setf(x, y, 0.0f); // Set pixels below the threshold to 0
                 } else {
-                    fp.setf(x, y, 255.0f); // Set pixels above the threshold to 255
+                    bp.setf(x, y, 255.0f); // Set pixels above the threshold to 255
                 }
             }
         }
-        ImagePlus binaryImp = new ImagePlus("Binary Image", fp);
-        binaryImp.show();
-        return binaryImp;
+        return bp;
     }
 
 
@@ -496,8 +494,8 @@ public class ImageProcessingUtils {
         ip.blurGaussian(gsigma);
 
         //show gaus image
-        ImagePlus impGaus = new ImagePlus("Gaus Image", ip);
-        impGaus.show();
+       ImagePlus impGaus = new ImagePlus("Gaus Image", ip);
+//        impGaus.show();
         return impGaus;
     }
 

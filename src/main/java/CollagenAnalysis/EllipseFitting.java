@@ -1,5 +1,6 @@
 package CollagenAnalysis;
 
+import ij.util.ArrayUtil;
 import org.apache.commons.math3.linear.*;
 
 import java.util.ArrayList;
@@ -12,6 +13,8 @@ public class EllipseFitting {
     private ArrayList<double[]> yEllipses = new ArrayList<>();
 
     private ArrayList<double[]> radius_pix = new ArrayList<>();
+
+    private ArrayList<Double> angle_of_major_axis = new ArrayList<Double>();
 
     private ArrayList<double[]> mus = new ArrayList<>();
 
@@ -104,8 +107,8 @@ public class EllipseFitting {
             RealMatrix V = eig.getV();
 
             double[] radiusPix = {
-                    2 * Math.sqrt(Math.max(eigenValues[0], eigenValues[1])),
-                    2 * Math.sqrt(Math.min(eigenValues[0], eigenValues[1]))
+                    2 * Math.sqrt(Math.max(eigenValues[0], eigenValues[1])), //major radius
+                    2 * Math.sqrt(Math.min(eigenValues[0], eigenValues[1]))  //minor radius
             };
             radius_pix.add(radiusPix);
 
@@ -129,11 +132,27 @@ public class EllipseFitting {
             yEllipses.add(yEllipse);
 
 
+            // Extract the angle of the major axis
+            double[] eigenVector = V.getColumnVector(eigenValues[0] > eigenValues[1] ? 0 : 1).toArray();
+            double angle = Math.atan2(eigenVector[1], eigenVector[0]);
+            angle_of_major_axis.add(Math.toDegrees(angle));
+            System.out.println("Ellipse " + i + ": Major Radius = " + radiusPix[0] + ", Minor Radius = " + radiusPix[1] + ", Angle = " + angle);
+
+
 //            System.out.printf("Ellipse %d coordinates (x, y):\n", i);
 //            for (int j = 0; j < DEGREES; j++) {
 //                System.out.printf("[%f, %f]\n", xEllipse[j], yEllipse[j]);
 //            }
         }
+    }
+    //Ratio of major to minor radius
+    public ArrayList<Double> getAspectRatios(){
+        ArrayList<Double> ratios = new ArrayList<>();
+        for (double[] radiusPix : radius_pix) {
+            double ratio = radiusPix[0] / radiusPix[1];
+            ratios.add(ratio);
+        }
+        return ratios;
     }
 
     public ArrayList<double[]> getxEllipses() {
@@ -143,6 +162,12 @@ public class EllipseFitting {
     public ArrayList<double[]> getyEllipses() {
         return yEllipses;
     }
+
+    public ArrayList<Double> getAngle_of_major_axis() {
+        return angle_of_major_axis;
+    }
+
+
 
     public ArrayList<double[]> getRadius_pix() {
         return radius_pix;

@@ -518,4 +518,12 @@ public class GaussianMixtureModel {
         return p;
     }
     public double[][] getMus(){return mus;}
+
+    public double[][][] getCovariance() {
+        return covariance;
+    }
+
+    public double[] getComponentProportions() {
+        return componentProportions;
+    }
 }

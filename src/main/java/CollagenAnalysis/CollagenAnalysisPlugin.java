@@ -14,12 +14,17 @@ import ij.ImagePlus;
 import ij.gui.GenericDialog;
 import ij.gui.WaitForUserDialog;
 import ij.plugin.filter.PlugInFilter;
+import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import smile.neighbor.KDTree;
 import smile.neighbor.Neighbor;
 
 import java.awt.*;
+import java.io.File;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -96,7 +101,9 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         FloatProcessor ip3 = ip2.duplicate().convertToFloatProcessor();
 
         //binarize the smoothed img using Otsu optimal threshold
-        ImagePlus binaryImg = binarizeUsingOtsu(ip3);
+        ByteProcessor binary1 = binarizeUsingOtsu(ip3);
+        ImagePlus binaryImg = new ImagePlus("Initial binary attempt",binary1);
+        binaryImg.show();
 
 //        for (int x = 0; x < ip3.getWidth(); x++) {
 //            for (int y = 0; y < ip3.getHeight(); y++) {
@@ -151,12 +158,14 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
 
         ImagePlus smooth2 = vm.Interpolation(imageAfterSmoothing.getProcessor());
-        smooth2.show();
+        //smooth2.show();
 
         FloatProcessor ip4 = smooth2.getProcessor().duplicate().convertToFloatProcessor();
 
         //binarize the smoothed img using Otsu optimal threshold
-        ImagePlus binaryImg2 = binarizeUsingOtsu(ip4);
+        ImageProcessor binary2 = binarizeUsingOtsu(ip4);
+        ImagePlus binaryImg2 = new ImagePlus("Final binary attempt", binary2);
+        binaryImg2.show();
 
         //TODO:  abstract this code into its own class. if centroids over certain number increase thin_inc
         int thin_inc = 20;
@@ -190,7 +199,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         ImageProcessor pixelsForGmm = imgAfterGausFiltering.getProcessor().duplicate().convertToColorProcessor();
         OverlayManager.overlayPixels(pixelsForGmm,fibrilPixelsThinned, Color.red.getRGB());
         ImagePlus t = new ImagePlus("Pixels for gmm", pixelsForGmm);
-        t.show();
+        //t.show();
 
         writeArrayToFile(centroidsIdxThinned, "c_idx_thinned.Text");
 
@@ -262,26 +271,123 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         //POST PROCESSING
         IJ.showStatus("Post Processing...");
 
+        //conversion from pixels to nm
         double nanometers_over_pixels = imageManager.getConversionFactor();
+        //Number times original image got scaled down by two
         int scale = imageManager.getScale();
 
+        //Ellipse data
         ArrayList<double[]> radiusPix = ef.getRadius_pix();
+        ArrayList<Double> major_axis_angle = ef.getAngle_of_major_axis();
         ArrayList<double[]> x_ellipse = ef.getxEllipses();
         ArrayList<double[]> y_ellipse = ef.getyEllipses();
+        ArrayList<Double> aspectRatios = ef.getAspectRatios();
+
+
+        //GMM data
         double[][] mus = gmm.getMus();
+        double[][][] covariances = gmm.getCovariance();
+        double[] componentProportions = gmm.getComponentProportions();
 
 
+        //ellipse scaling
         radiusPix.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
+        major_axis_angle.replaceAll(angle -> angle * scale);
         x_ellipse.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
         y_ellipse.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
+        aspectRatios.replaceAll(ratio -> ratio * scale);
+
+
+
+        //gmm scaling
         Arrays.stream(mus).forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
+        covariances = Arrays.stream(covariances)
+                .map(matrix -> Arrays.stream(matrix)
+                        .map(row -> Arrays.stream(row)
+                                .map(value -> value * scale)
+                                .toArray())
+                        .toArray(double[][]::new))
+                .toArray(double[][][]::new);
+        Arrays.setAll(componentProportions, i -> componentProportions[i] * scale);
 
 
         double[] area_pix2 = computeFibrilArea(post_fibril, scale, mus.length);
-        Arrays.setAll(area_pix2, i -> area_pix2[i] * Math.pow(nanometers_over_pixels, 2));
+        Arrays.setAll(area_pix2, i -> area_pix2[i] * scale);
 
 
 
+
+        // converting from pixels to nm
+        double[] area_nm2 = area_pix2.clone();
+        Arrays.setAll(area_nm2, i -> area_pix2[i] * Math.pow(nanometers_over_pixels, 2));
+        ArrayList<double[]> radius_nm = (ArrayList<double[]>) radiusPix.clone();
+        radius_nm.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * nanometers_over_pixels));
+
+
+        // OUTPUT RESULT
+
+        try{
+            File Results_In_Pixels = new File("/Users/tywatson/development/repos/TEM-Collagen-Analysis-Plugin/output/Results_In_Pixels.csv");
+            if(Results_In_Pixels.delete()){
+                Results_In_Pixels.createNewFile();
+            }
+            FileWriter out = new FileWriter(Results_In_Pixels);
+            CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.withHeader(
+                    "Area (pixels^2)", "Major Radius (pixels)", "Minor Radius (pixels)",
+                    "Angle (degrees)", "Centroid X (pixels)", "Centroid Y (pixels)",
+                    "Covariance XX (pixels^2)", "Covariance XY (pixels^2)", "Covariance YY (pixels^2)",
+                    "Component Proportion"));
+
+            for(int i = 0; i < convertedCentroids.length; i++){
+                printer.printRecord(formatField(area_pix2[i]),
+                        formatField(radiusPix.get(i)[0]),
+                        formatField(radiusPix.get(i)[1]),
+                        formatField(major_axis_angle.get(i)),
+                        formatField(convertedCentroids[i][0]),
+                        formatField(convertedCentroids[i][1]),
+                        formatField(covariances[i][0][0]),
+                        formatField(covariances[i][0][1]),
+                        formatField(covariances[i][1][1]),
+                        formatField(componentProportions[i]));
+            }
+            out.close();
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        try{
+            File Results_In_Nm = new File("/Users/tywatson/development/repos/TEM-Collagen-Analysis-Plugin/output/Results_In_Nm.csv");
+            if(Results_In_Nm.delete()){
+                Results_In_Nm.createNewFile();
+            }
+            FileWriter out2 = new FileWriter(Results_In_Nm);
+            CSVPrinter printer = new CSVPrinter(out2, CSVFormat.DEFAULT.withHeader(
+                    "Area (nanometers^2)", "Major Radius (nanometers)", "Minor Radius (nanometers)",
+                    "Aspect Ratio"));
+
+            for(int i = 0; i < convertedCentroids.length; i++){
+                printer.printRecord(formatField(area_nm2[i]),
+                        formatField(radius_nm.get(i)[0]),
+                        formatField(radius_nm.get(i)[1]),
+                        formatField(aspectRatios.get(i)));
+            }
+            out2.close();
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        IJ.showStatus("Processing done");
+        System.out.println("Processing done");
+    }
+
+    private static String formatField(double value) {
+        return String.format("%-28.8f", value);
+    }
+
+    private static String formatField(int value) {
+        return String.format("%-22.1f", (double)value);
     }
 
     private boolean showDialog() {

@@ -47,7 +47,7 @@ public class VoronoiManager {
     public ImagePlus Interpolation(ImageProcessor ip){
         ImageProcessor p = ip.duplicate();
         ImagePlus n = new ImagePlus("Filtered image before Interpolation", ip);
-        n.show();
+        //n.show();
         double[] charIntensities = generateCharCellIntensity(ip);
         Interpolator interpolator = new Interpolator(centroids, charIntensities);
         ImageProcessor testp = p.duplicate();
@@ -63,7 +63,7 @@ public class VoronoiManager {
                 p.putPixelValue(x, y, transformedIntensity);
             }
         }
-        test.show();
+        //test.show();
         ImagePlus i = new ImagePlus("after interpolation", p);
         return i;
 
@@ -350,7 +350,7 @@ public class VoronoiManager {
             // Calculate the mean intensity for the current centroid
             char_cell_intensity[i] = mean(intensities);
         }
-        testimg.show();
+        //testimg.show();
         return char_cell_intensity;
     }
     // Assuming you have a method to calculate the quantile

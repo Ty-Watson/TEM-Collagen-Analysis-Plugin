@@ -79,7 +79,7 @@ public class CentroidManager {
         EDM edm = new EDM();
         edm.toEDM(bp);
 
-        new ImagePlus("Euclidean distance map",bp).show();
+        //new ImagePlus("Euclidean distance map",bp);
 
         ImageProcessor fpFiltered  = bp.duplicate().convertToFloatProcessor();
         fpFiltered.blurGaussian(optimalSigma);
@@ -94,7 +94,6 @@ public class CentroidManager {
 
         ImagePlus t;
         pa.analyze(t = new ImagePlus(numberOfMaxima + " centroids at sigma " + optimalSigma, maxima));
-        t.show();
 
         ArrayList<double[]> centroids = getCentroidsCords(maxima);
 
