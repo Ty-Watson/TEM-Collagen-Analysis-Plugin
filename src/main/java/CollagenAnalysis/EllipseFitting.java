@@ -1,24 +1,50 @@
 package CollagenAnalysis;
 
+import ij.ImagePlus;
+import ij.gui.ImageCanvas;
+import ij.process.ImageProcessor;
 import ij.util.ArrayUtil;
 import org.apache.commons.math3.linear.*;
 
+import java.awt.*;
+import java.awt.event.AWTEventListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 
+import static CollagenAnalysis.ImageProcessingUtils.*;
+
 public class EllipseFitting {
-    private static final double[] theta = createThetaArray();
+
+    private ArrayList<double[]> centroids;
+    private int[] cluster_idx;
+    private ArrayList<double[]> fibrilPixels = new ArrayList<>();
     public static final int DEGREES = 361; // 0 to 360 degrees
 
     private ArrayList<double[]> xEllipses = new ArrayList<>();
     private ArrayList<double[]> yEllipses = new ArrayList<>();
 
+    private ArrayList<Polygon> ellipses = new ArrayList<>();
+
     private ArrayList<double[]> radius_pix = new ArrayList<>();
 
     private ArrayList<Double> angle_of_major_axis = new ArrayList<Double>();
+    private double[][] post_fibril;
 
-    private ArrayList<double[]> mus = new ArrayList<>();
+    private ImagePlus imp;
+    private ImageProcessor ip;
+    private ImageCanvas canvas;
 
-
+    public EllipseFitting(ImagePlus imp, ArrayList<double[]> fibrilPixels, ArrayList<double[]> centroids, int[] cluster_idx, double[][] post_fibril){
+        this.fibrilPixels = fibrilPixels;
+        this.centroids = centroids;
+        this.cluster_idx = cluster_idx;
+        this.post_fibril = post_fibril;
+        ip = imp.getProcessor().duplicate().convertToColorProcessor();
+        this.imp = new ImagePlus("EllipseFitting", ip);
+        this.imp.show();
+        setCanvasEvents();
+    }
     private static double[] createThetaArray() {
         double[] theta = new double[361];
         for (int i = 0; i <= 360; i++) {
@@ -27,80 +53,25 @@ public class EllipseFitting {
         return theta;
     }
 
-    public  void fitEllipses(ArrayList<double[]> fibrilPixels, int centroidLength, int[] cluster_idx/*boolean[] isBoundaryCentroid*/) {
-        ArrayList<double[]> fibrilPixelsForThisCentroid = new ArrayList<>();
-        int[] numberOfPixelsForEachCentroid = new int[centroidLength];
+    public  void fitEllipses() {
+        ip.snapshot();
+        //recalculate these when user deletes ellipse
+        xEllipses.clear();
+        yEllipses.clear();
+        radius_pix.clear();
+        angle_of_major_axis.clear();
 
-        ArrayList<double[][]> covariance = new ArrayList<>();
-        for(int i = 0; i < centroidLength; i++) {
-            // Reset the temporary storage for the next centroid
-            fibrilPixelsForThisCentroid.clear();
-            for (int j = 0; j < fibrilPixels.size(); j++) {
-                //Loop through all fibril pixels and find the ones that belong to this centroid.
-                if (cluster_idx[j] == i) {
-                    //count number of pixels for this centroid
-                    numberOfPixelsForEachCentroid[i] += 1;
-                    //add the fibril pixel coordinates to this centroid
-                    fibrilPixelsForThisCentroid.add(fibrilPixels.get(j));
-                }
+        FibrilUtils util = new FibrilUtils();
 
+        util.calculateMuAndCovarianceForEachFibril(fibrilPixels, centroids, cluster_idx);
 
-            }
-            //  sums for the current centroid
-            double xsum = 0;
-            double ysum = 0;
-
-            // Sum up x and y coordinates for all pixels associated with the current centroid
-            for (double[] pixel : fibrilPixelsForThisCentroid) {
-                xsum += pixel[0];
-                ysum += pixel[1];
-            }
-
-            // Calculate and store the mean (mu) for the current centroid
-            double[] mu = new double[2];
-            mu[0] = xsum / numberOfPixelsForEachCentroid[i];
-            mu[1] = ysum / numberOfPixelsForEachCentroid[i];
-            mus.add(mu);
-
-            // Variables for calculating the variances and covariance
-            double varx = 0;
-            double vary = 0;
-            double covxy = 0;
-//            for(int t = 0; t < numberOfPixelsForEachCentroid[i]; t++){
-//
-//                varx  += Math.pow(fibrilPixelsForThisCentroid.get(t)[0] - mus.get(i)[0], 2);
-//                vary  += Math.pow(fibrilPixelsForThisCentroid.get(t)[1] - mus.get(i)[1], 2);
-//                covxy  += (fibrilPixelsForThisCentroid.get(t)[0] - mus.get(i)[0]) *  (fibrilPixelsForThisCentroid.get(t)[1] - mus.get(i)[1]);
-//            }
-            // Calculate variances and covariance for the current centroid
-            for (double[] pixel : fibrilPixelsForThisCentroid) {
-                double dx = pixel[0] - mu[0];
-                double dy = pixel[1] - mu[1];
-                varx += dx * dx;
-                vary += dy * dy;
-                covxy += dx * dy;
-            }
-            // Normalize the variances and covariance by the number of pixels
-            varx = varx / numberOfPixelsForEachCentroid[i];
-            vary = vary / numberOfPixelsForEachCentroid[i];
-            covxy = covxy / numberOfPixelsForEachCentroid[i];
-
-            // Store the covariance matrix for the current centroid
-            double[][] cov = new double[2][2];
-            cov[0][0] = varx;
-            cov[0][1] = covxy;
-            cov[1][0] = covxy;
-            cov[1][1] = vary;
-
-            covariance.add(cov);
-        }
-
-
+        ArrayList<double[][]> covarianceForEachFibril = util.covarianceForEachFibril;
+        ArrayList<double[]> mus = util.muForEachFibril;
 
         // Fit ellipses
-        for (int i = 0; i < centroidLength; i++) {
+        for (int i = 0; i < centroids.size(); i++) {
             double[] mu = mus.get(i);
-            RealMatrix covMatrix = new Array2DRowRealMatrix(covariance.get(i));
+            RealMatrix covMatrix = new Array2DRowRealMatrix(covarianceForEachFibril.get(i));
             EigenDecomposition eig = new EigenDecomposition(covMatrix);
 
             double[] eigenValues = eig.getRealEigenvalues();
@@ -139,12 +110,49 @@ public class EllipseFitting {
             System.out.println("Ellipse " + i + ": Major Radius = " + radiusPix[0] + ", Minor Radius = " + radiusPix[1] + ", Angle = " + angle);
 
 
+
 //            System.out.printf("Ellipse %d coordinates (x, y):\n", i);
 //            for (int j = 0; j < DEGREES; j++) {
 //                System.out.printf("[%f, %f]\n", xEllipse[j], yEllipse[j]);
 //            }
         }
+        generateEllipsePolygons();
+        drawEllipses();
     }
+
+    private void generateEllipsePolygons(){
+        // Iterate over all ellipses
+        for (int i = 0; i < xEllipses.size(); i++) {
+            double[] xCoords = xEllipses.get(i);
+            double[] yCoords = yEllipses.get(i);
+
+            if (xCoords.length != yCoords.length || xCoords.length != DEGREES) {
+                throw new IllegalArgumentException("Each ellipse coordinate array must have the same length and match the expected number of degrees.");
+            }
+
+            int[] xPoints = new int[DEGREES];
+            int[] yPoints = new int[DEGREES];
+
+            // Prepare the coordinates for drawing
+            for (int j = 0; j < DEGREES; j++) {
+                xPoints[j] = (int) Math.round(xCoords[j]);
+                yPoints[j] = (int) Math.round(yCoords[j]);
+            }
+
+            // Create a polygon from the ellipse points
+            Polygon p = new Polygon(xPoints, yPoints, DEGREES);
+            ellipses.add(p);
+        }
+    }
+
+
+    private void drawEllipses(){
+        OverlayManager.drawEllipsesOnImage(ip, ellipses);
+        imp.updateAndDraw();
+        OverlayManager.overlayCentroids(ip, centroids.toArray(new double[centroids.size()][]), Color.red.getRGB());
+        imp.updateAndDraw();
+    }
+
     //Ratio of major to minor radius
     public ArrayList<Double> getAspectRatios(){
         ArrayList<Double> ratios = new ArrayList<>();
@@ -154,6 +162,48 @@ public class EllipseFitting {
         }
         return ratios;
     }
+
+    private void setCanvasEvents(){
+        canvas = imp.getCanvas();
+        canvas.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (e.getButton() == MouseEvent.BUTTON1) { // Left click delete ellipse
+                    int clickX = canvas.offScreenX(e.getX());
+                    int clickY = canvas.offScreenY(e.getY());
+
+                    // Find and remove the nearest centroid to the click
+                    double[] nearestCentroid = findNearestCentroid(centroids, clickX, clickY);
+                    if (nearestCentroid != null) {
+                        int removedIndex = findAndRemoveNearestEllipse(clickX, clickY);
+                        if (removedIndex != -1) {
+                            //if click is not in ellipse, then dont remove centroid
+                            centroids.remove(nearestCentroid);
+                            ip.reset();
+                            drawEllipses();
+                        }
+                    }
+                }
+            }
+        });
+
+    }
+
+    private int findAndRemoveNearestEllipse(int clickX, int clickY) {
+        for (int i = 0; i < ellipses.size(); i++) {
+            Polygon p = ellipses.get(i);
+            if (p.contains(clickX, clickY)) {
+                xEllipses.remove(i);
+                yEllipses.remove(i);
+                radius_pix.remove(i);
+                angle_of_major_axis.remove(i);
+                ellipses.remove(i);
+                return i;
+            }
+        }
+        return -1; // No ellipse contains the point
+    }
+
 
     public ArrayList<double[]> getxEllipses() {
         return xEllipses;

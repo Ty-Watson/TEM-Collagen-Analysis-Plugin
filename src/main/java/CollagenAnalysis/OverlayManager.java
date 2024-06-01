@@ -4,6 +4,7 @@ package CollagenAnalysis;
 import de.alsclo.voronoi.Voronoi;
 import de.alsclo.voronoi.graph.Graph;
 import de.alsclo.voronoi.graph.Point;
+import ij.ImagePlus;
 import ij.process.ImageProcessor;
 
 import java.awt.*;
@@ -122,6 +123,12 @@ public  class OverlayManager {
             ip.drawPolygon(p);
         }
 
+    }
+    public static void drawEllipsesOnImage(ImageProcessor ip, ArrayList<Polygon> ellipses){
+        ip.setColor(Color.blue);
+        for(Polygon p : ellipses){
+            ip.drawPolygon(p);
+        }
     }
     public static void overlayColoredClusterAssignments(ImageProcessor clusterColorsProcessor,ArrayList<double[]> fibrilPixels, int[] clusterAssignments){
         Color[] clusterColors = new Color[] {

@@ -13,12 +13,15 @@ import ij.process.ImageProcessor;
 import smile.classification.KNN;
 
 import java.awt.*;
+import java.awt.event.AWTEventListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Path2D;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Stream;
+
+import static CollagenAnalysis.ImageProcessingUtils.findNearestCentroid;
 
 
 public class VoronoiManager {
@@ -229,48 +232,80 @@ public class VoronoiManager {
 
     private void setCanvasEvents(){
         canvas = imp.getCanvas();
+
+//        canvas.addMouseListener(new MouseAdapter() {
+//            @Override
+//            public void mouseClicked(MouseEvent e) {
+//
+//                if(e.getButton() == MouseEvent.BUTTON1){   //left click add centroid
+//                    int clickX = canvas.offScreenX(e.getX());
+//                    int clickY = canvas.offScreenY(e.getY());
+//
+//                    double[] newCentroid = new double[]{ clickX, clickY};
+//
+//                    centroids.add(newCentroid);
+//                    ip.reset();
+//                    drawVoronoi();
+//                }
+//                else if(e.getButton() == MouseEvent.BUTTON3){ //right click remove centroid
+//                    int clickX = canvas.offScreenX(e.getX());
+//                    int clickY = canvas.offScreenY(e.getY());
+//
+//                    // Find and remove the nearest centroid to the click
+//                    double[] nearestCentroid = findNearestCentroid(centroids, clickX, clickY);
+//                    centroids.remove(nearestCentroid);
+//                    ip.reset();
+//                    drawVoronoi();
+//                }
+//
+//
+//            }
+//
+//        });
+        // Add an AWTEventListener to globally intercept mouse events
+        Toolkit.getDefaultToolkit().addAWTEventListener(new AWTEventListener() {
+            @Override
+            public void eventDispatched(AWTEvent event) {
+                if (event instanceof MouseEvent) {
+                    MouseEvent mouseEvent = (MouseEvent) event;
+                    if (mouseEvent.getID() == MouseEvent.MOUSE_PRESSED && mouseEvent.getButton() == MouseEvent.BUTTON3) {
+                        mouseEvent.consume(); // Consume the event to prevent context menu
+
+                        // Check if the event occurred on our canvas
+                        if (mouseEvent.getSource() == canvas) {
+                            int clickX = canvas.offScreenX(mouseEvent.getX());
+                            int clickY = canvas.offScreenY(mouseEvent.getY());
+
+                            // Find and remove the nearest centroid to the click
+                            double[] nearestCentroid = findNearestCentroid(centroids, clickX, clickY);
+                            if (nearestCentroid != null) {
+                                centroids.remove(nearestCentroid);
+                                ip.reset();
+                                drawVoronoi();
+                            }
+                        }
+                    }
+                }
+            }
+        }, AWTEvent.MOUSE_EVENT_MASK);
+
         canvas.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseClicked(MouseEvent e) {
-
-                if(e.getButton() == MouseEvent.BUTTON1){   //left click add centroid
+            public void mousePressed(MouseEvent e) {
+                if (e.getButton() == MouseEvent.BUTTON1) { // Left click add centroid
                     int clickX = canvas.offScreenX(e.getX());
                     int clickY = canvas.offScreenY(e.getY());
 
                     double[] newCentroid = new double[]{ clickX, clickY};
-
                     centroids.add(newCentroid);
                     ip.reset();
                     drawVoronoi();
                 }
-                else if(e.getButton() == MouseEvent.BUTTON3){ //right click remove centroid
-                    int clickX = canvas.offScreenX(e.getX());
-                    int clickY = canvas.offScreenY(e.getY());
-
-                    // Find and remove the nearest centroid to the click
-                    double[] nearestCentroid = findNearestCentroid(centroids, clickX, clickY);
-                    centroids.remove(nearestCentroid);
-                    ip.reset();
-                    drawVoronoi();
-                }
-
-
             }
-
         });
+
     }
-    private double[] findNearestCentroid(ArrayList<double[]> points, int x, int y) {
-        double[] nearest = null;
-        double minDistance = Double.MAX_VALUE;
-        for (double[] point : points) {
-            double distance = Math.sqrt(Math.pow(point[0] - x, 2) + Math.pow(point[1] - y, 2));
-            if (distance < minDistance) {
-                minDistance = distance;
-                nearest = point;
-            }
-        }
-        return nearest;
-    }
+
 
     private boolean belongsToCell(Point pixel, Point centroid){
         Set<Vertex> verticesForVoronoiCell = cells.get(centroid);

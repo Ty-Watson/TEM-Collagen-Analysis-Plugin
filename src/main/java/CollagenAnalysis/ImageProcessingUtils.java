@@ -19,6 +19,40 @@ import java.io.*;
 import java.util.ArrayList;
 
 public class ImageProcessingUtils {
+    public static int findNearestEllipse(int clickX, int clickY, ArrayList<double[]> centroids) {
+        double minDistance = Double.MAX_VALUE;
+        int nearestEllipseIndex = -1;
+
+        for (int i = 0; i < centroids.size(); i++) {
+            double[] centroid = centroids.get(i);
+            double distance = Math.sqrt(Math.pow(clickX - centroid[0], 2) + Math.pow(clickY - centroid[1], 2));
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearestEllipseIndex = i;
+            }
+        }
+
+        return nearestEllipseIndex;
+    }
+    public static double[] findNearestCentroid(ArrayList<double[]> points, int x, int y) {
+        double[] nearest = null;
+        double minDistance = Double.MAX_VALUE;
+        for (double[] point : points) {
+            double distance = Math.sqrt(Math.pow(point[0] - x, 2) + Math.pow(point[1] - y, 2));
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearest = point;
+            }
+        }
+        return nearest;
+    }
+    public static ArrayList<double[]> convertToArrayList(double[][] doubleArray) {
+        ArrayList<double[]> arrayList = new ArrayList<>();
+        for (double[] arr : doubleArray) {
+            arrayList.add(arr);
+        }
+        return arrayList;
+    }
     public static double[] computeFibrilArea(double[][] postFibril, int scale, int fibrilCount) {
         double[] areaPix2 = new double[fibrilCount];
 

@@ -205,7 +205,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         GaussianMixtureModel gmm = new GaussianMixtureModel(convertedCentroids.length, fibrilPixelsThinned, centroidsIdxThinned);
         gmm.EM(false, 50);
-        double[][] p = gmm.getPosteriorProbabilityMatrix();
+        //double[][] p = gmm.getPosteriorProbabilityMatrix();
         //writeArrayToFile(p, "p.Text");
         //double[][] p = readArrayFromFile("p.Text");
 
@@ -259,15 +259,19 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         resultImage3.show();
 
         IJ.showStatus("Fitting Ellipses");
-        EllipseFitting ef = new EllipseFitting();
-        ef.fitEllipses(fibrilPixels, convertedCentroids.length, clusterAssignments);
-        ImageProcessor ellipseP = imgAfterGausFiltering.getProcessor().duplicate().convertToColorProcessor();
-        OverlayManager.drawEllipsesOnImage(ellipseP, ef.getxEllipses(), ef.getyEllipses(), convertedCentroids.length);
-        OverlayManager.overlayCentroids(ellipseP, convertedCentroids, Color.red.getRGB());
-        ImagePlus ei = new ImagePlus("Ellipse", ellipseP);
-        ei.show();
+        //gmm centroids or user corrected centroids?
+        EllipseFitting ef = new EllipseFitting(originalImgScaled, fibrilPixels, convertToArrayList(gmm.getMus()), clusterAssignments, post_fibril);
+        ef.fitEllipses();
+//        ImageProcessor ellipseP = imgAfterGausFiltering.getProcessor().duplicate().convertToColorProcessor();
+//        OverlayManager.drawEllipsesOnImage(ellipseP, ef.getxEllipses(), ef.getyEllipses(), convertedCentroids.length);
+//        OverlayManager.overlayCentroids(ellipseP, convertedCentroids, Color.red.getRGB());
+//        ImagePlus ei = new ImagePlus("Ellipse", ellipseP);
+//        ei.show();
 
 
+        WaitForUserDialog wfud2 = new WaitForUserDialog("Action Required", "edit ellipses");
+        wfud2.show();
+        if (wfud2.escPressed()) return;
         //POST PROCESSING
         IJ.showStatus("Post Processing...");
 
