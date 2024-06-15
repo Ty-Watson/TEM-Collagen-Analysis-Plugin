@@ -5,6 +5,7 @@ import de.alsclo.voronoi.Voronoi;
 import de.alsclo.voronoi.graph.Graph;
 import de.alsclo.voronoi.graph.Point;
 import ij.ImagePlus;
+import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 
 import java.awt.*;
@@ -13,6 +14,33 @@ import java.util.ArrayList;
 import static CollagenAnalysis.EllipseFitting.DEGREES;
 
 public  class OverlayManager {
+
+    public static void overlayBinaryAttempts(ImageProcessor ip, ImageProcessor initalAttempt, ImageProcessor finalAttempt){
+        int width = initalAttempt.getWidth();
+        int height = initalAttempt.getHeight();
+        for(int y = 0; y < height; y++){
+            for(int x = 0; x < width; x++){
+                float initialPixel = initalAttempt.getPixelValue(x, y);
+                if(initialPixel == finalAttempt.getPixelValue(x,y)){
+                    if(initialPixel == 255){
+                        ip.setf(x, y, Color.white.getRGB());
+                    }
+                    else{
+                        ip.setf(x, y, Color.black.getRGB());
+                    }
+
+                }
+                else{
+                    if(initialPixel == 0){
+                        ip.setf(x,y, Color.magenta.getRGB());
+                    }
+                    else{
+                        ip.setf(x, y, Color.green.getRGB());
+                    }
+                }
+            }
+        }
+    }
 
     public static void overlayContourLines(ImageProcessor contour , double[][][] post_all, int color){
         int numFibrils = post_all.length;

@@ -1,12 +1,47 @@
 package CollagenAnalysis;
 
+import org.apache.commons.math3.linear.Array2DRowRealMatrix;
+import org.apache.commons.math3.linear.RealMatrix;
+
 import java.util.ArrayList;
 
 public class FibrilUtils {
+    private final double regularizationValue = 0.1;
+
     public ArrayList<double[]> muForEachFibril = new ArrayList<>();
     public ArrayList<double[][]> covarianceForEachFibril = new ArrayList<>();
+    //public ArrayList<RealMatrix> covariance = new ArrayList<>();
     public FibrilUtils(){
 
+    }
+
+    private void validateCovariance(){
+        for(int i = 0; i < covarianceForEachFibril.size(); i++){
+            RealMatrix regularizedCovMatrix = new Array2DRowRealMatrix(covarianceForEachFibril.get(i));
+//            // Ensure the covariance matrix is positive definite by adding a small value to the diagonal elements
+//            double regularizationFactor = 1e-10;
+//            RealMatrix regularizedCovMatrix = covMatrix.copy();
+//            for (int j = 0; j < regularizedCovMatrix.getRowDimension(); j++) {
+//                regularizedCovMatrix.addToEntry(j, j, regularizationFactor);
+//            }
+
+            // Check for NaN or infinite values in the covariance matrix
+            for (int row = 0; row < regularizedCovMatrix.getRowDimension(); row++) {
+                for (int col = 0; col < regularizedCovMatrix.getColumnDimension(); col++) {
+                    double value = regularizedCovMatrix.getEntry(row, col);
+                    if (Double.isNaN(value) || Double.isInfinite(value)) {
+                        throw new IllegalStateException("Covariance matrix contains NaN or infinite values");
+//                        regularizedCovMatrix.setEntry(row, col, 0);
+//                        covariance.add(regularizedCovMatrix);
+                    }
+//                    else{
+//                        covariance.add(regularizedCovMatrix);
+//                    }
+                }
+            }
+
+
+        }
     }
 
     public void calculateMuAndCovarianceForEachFibril(ArrayList<double[]> fibrilPixels, ArrayList<double[]> centroids, int[] cluster_idx){
@@ -74,8 +109,13 @@ public class FibrilUtils {
             cov[1][0] = covxy;
             cov[1][1] = vary;
 
+            // Add regularization value to the diagonal elements
+            cov[0][0] += regularizationValue;
+            cov[1][1] += regularizationValue;
+
             covarianceForEachFibril.add(cov);
         }
+        validateCovariance();
     }
 
 

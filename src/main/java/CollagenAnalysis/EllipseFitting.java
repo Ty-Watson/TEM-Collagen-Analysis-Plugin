@@ -11,6 +11,7 @@ import java.awt.event.AWTEventListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import static CollagenAnalysis.ImageProcessingUtils.*;
 
@@ -29,17 +30,20 @@ public class EllipseFitting {
     private ArrayList<double[]> radius_pix = new ArrayList<>();
 
     private ArrayList<Double> angle_of_major_axis = new ArrayList<Double>();
+
+    ArrayList<double[]> nonboundryCentroids = new ArrayList<>();
     private double[][] post_fibril;
 
     private ImagePlus imp;
     private ImageProcessor ip;
     private ImageCanvas canvas;
 
-    public EllipseFitting(ImagePlus imp, ArrayList<double[]> fibrilPixels, ArrayList<double[]> centroids, int[] cluster_idx, double[][] post_fibril){
+    public EllipseFitting(ImagePlus imp, ArrayList<double[]> fibrilPixels, ArrayList<double[]> centroids, int[] cluster_idx, double[][] post_fibril, ArrayList<double[]> nonBoundryCentroids){
         this.fibrilPixels = fibrilPixels;
         this.centroids = centroids;
         this.cluster_idx = cluster_idx;
         this.post_fibril = post_fibril;
+        this.nonboundryCentroids = nonBoundryCentroids;
         ip = imp.getProcessor().duplicate().convertToColorProcessor();
         this.imp = new ImagePlus("EllipseFitting", ip);
         this.imp.show();
@@ -53,7 +57,7 @@ public class EllipseFitting {
         return theta;
     }
 
-    public  void fitEllipses() {
+    public  void fitEllipses(ArrayList<Boolean> isBoundryCentroid) {
         ip.snapshot();
         //recalculate these when user deletes ellipse
         xEllipses.clear();
@@ -66,48 +70,55 @@ public class EllipseFitting {
         util.calculateMuAndCovarianceForEachFibril(fibrilPixels, centroids, cluster_idx);
 
         ArrayList<double[][]> covarianceForEachFibril = util.covarianceForEachFibril;
+        //ArrayList<RealMatrix> covariance = util.covariance;
         ArrayList<double[]> mus = util.muForEachFibril;
 
         // Fit ellipses
         for (int i = 0; i < centroids.size(); i++) {
-            double[] mu = mus.get(i);
-            RealMatrix covMatrix = new Array2DRowRealMatrix(covarianceForEachFibril.get(i));
-            EigenDecomposition eig = new EigenDecomposition(covMatrix);
+            double[] centroid = centroids.get(i);
+            boolean notBoundry = nonboundryCentroids.contains(centroid);
+            if(notBoundry){
+                double[] mu = mus.get(i);
+                RealMatrix covMatrix = new Array2DRowRealMatrix(covarianceForEachFibril.get(i));
+                //RealMatrix covMatrix = new Array2DRowRealMatrix(covariance.get(i));
+                EigenDecomposition eig = new EigenDecomposition(covMatrix);
 
-            double[] eigenValues = eig.getRealEigenvalues();
-            RealMatrix V = eig.getV();
+                double[] eigenValues = eig.getRealEigenvalues();
+                RealMatrix V = eig.getV();
 
-            double[] radiusPix = {
-                    2 * Math.sqrt(Math.max(eigenValues[0], eigenValues[1])), //major radius
-                    2 * Math.sqrt(Math.min(eigenValues[0], eigenValues[1]))  //minor radius
-            };
-            radius_pix.add(radiusPix);
+                double[] radiusPix = {
+                        2 * Math.sqrt(Math.max(eigenValues[0], eigenValues[1])), //major radius
+                        2 * Math.sqrt(Math.min(eigenValues[0], eigenValues[1]))  //minor radius
+                };
+                radius_pix.add(radiusPix);
 
-            double[] xEllipse = new double[DEGREES];
-            double[] yEllipse = new double[DEGREES];
+                double[] xEllipse = new double[DEGREES];
+                double[] yEllipse = new double[DEGREES];
 
-            for (int theta = 0; theta < DEGREES; theta++) {
-                //System.out.println("Degrees: " + theta);
-                double radians = Math.toRadians(theta);
-                double cosTheta = radiusPix[0] * Math.cos(radians);
-                double sinTheta = radiusPix[1] * Math.sin(radians);
+                for (int theta = 0; theta < DEGREES; theta++) {
+                    //System.out.println("Degrees: " + theta);
+                    double radians = Math.toRadians(theta);
+                    double cosTheta = radiusPix[0] * Math.cos(radians);
+                    double sinTheta = radiusPix[1] * Math.sin(radians);
 
-                //multiply RealMatrix by vector
-                double[] ellipsePoint = V.operate(new double[]{cosTheta, sinTheta});
-                xEllipse[theta] = ellipsePoint[0] + mu[0];
-                yEllipse[theta] = ellipsePoint[1] + mu[1];
-            }
+                    //multiply RealMatrix by vector
+                    double[] ellipsePoint = V.operate(new double[]{cosTheta, sinTheta});
+                    xEllipse[theta] = ellipsePoint[0] + mu[0];
+                    yEllipse[theta] = ellipsePoint[1] + mu[1];
+                }
 
-            // Store or display the ellipse coordinates
-            xEllipses.add(xEllipse);
-            yEllipses.add(yEllipse);
+                // Store or display the ellipse coordinates
+                xEllipses.add(xEllipse);
+                yEllipses.add(yEllipse);
 
 
-            // Extract the angle of the major axis
-            double[] eigenVector = V.getColumnVector(eigenValues[0] > eigenValues[1] ? 0 : 1).toArray();
-            double angle = Math.atan2(eigenVector[1], eigenVector[0]);
-            angle_of_major_axis.add(Math.toDegrees(angle));
-            System.out.println("Ellipse " + i + ": Major Radius = " + radiusPix[0] + ", Minor Radius = " + radiusPix[1] + ", Angle = " + angle);
+                // Extract the angle of the major axis
+                double[] eigenVector = V.getColumnVector(eigenValues[0] > eigenValues[1] ? 0 : 1).toArray();
+                double angle = Math.atan2(eigenVector[1], eigenVector[0]);
+                angle_of_major_axis.add(Math.toDegrees(angle));
+                System.out.println("Ellipse " + i + ": Major Radius = " + radiusPix[0] + ", Minor Radius = " + radiusPix[1] + ", Angle = " + angle);
+                System.out.println("NonBoundryCentroidCount: " + nonboundryCentroids.size());
+                System.out.println("all centroids: " + centroids.size());
 
 
 
@@ -115,6 +126,8 @@ public class EllipseFitting {
 //            for (int j = 0; j < DEGREES; j++) {
 //                System.out.printf("[%f, %f]\n", xEllipse[j], yEllipse[j]);
 //            }
+            }
+
         }
         generateEllipsePolygons();
         drawEllipses();
@@ -149,7 +162,7 @@ public class EllipseFitting {
     private void drawEllipses(){
         OverlayManager.drawEllipsesOnImage(ip, ellipses);
         imp.updateAndDraw();
-        OverlayManager.overlayCentroids(ip, centroids.toArray(new double[centroids.size()][]), Color.red.getRGB());
+        OverlayManager.overlayCentroids(ip, nonboundryCentroids.toArray(new double[nonboundryCentroids.size()][]), Color.red.getRGB());
         imp.updateAndDraw();
     }
 
@@ -173,12 +186,12 @@ public class EllipseFitting {
                     int clickY = canvas.offScreenY(e.getY());
 
                     // Find and remove the nearest centroid to the click
-                    double[] nearestCentroid = findNearestCentroid(centroids, clickX, clickY);
+                    double[] nearestCentroid = findNearestCentroid(nonboundryCentroids, clickX, clickY);
                     if (nearestCentroid != null) {
                         int removedIndex = findAndRemoveNearestEllipse(clickX, clickY);
                         if (removedIndex != -1) {
                             //if click is not in ellipse, then dont remove centroid
-                            centroids.remove(nearestCentroid);
+                            nonboundryCentroids.remove(nearestCentroid);
                             ip.reset();
                             drawEllipses();
                         }
@@ -215,6 +228,10 @@ public class EllipseFitting {
 
     public ArrayList<Double> getAngle_of_major_axis() {
         return angle_of_major_axis;
+    }
+
+    public ImagePlus getImage(){
+        return imp;
     }
 
 

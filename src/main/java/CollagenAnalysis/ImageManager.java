@@ -12,6 +12,7 @@ import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
+import org.scijava.tool.Tool;
 
 import java.awt.*;
 
@@ -25,10 +26,13 @@ public class ImageManager {
 
     private double  conversionFactor;
 
-    public ImageManager(ImageProcessor ip){
-        this.ip = ip;
+    public boolean[][] exclusionMask;
+
+    public ImageManager(ImagePlus imp){
+        this.ip = imp.getProcessor();
         this.height = ip.getHeight();
         this.width = ip.getWidth();
+        checkProcessor(imp);
     }
     public void scaleDown(){
         while(height >= 1000 || width >= 1000){
@@ -38,6 +42,20 @@ public class ImageManager {
             scale *= 2;
         }
     }
+    public void scaleUp(ImagePlus imp){
+        ImageProcessor imageProcessor = imp.getProcessor().duplicate();
+        int h = imageProcessor.getHeight() * scale;
+        int w = imageProcessor.getWidth() * scale;
+        imp.setProcessor(imageProcessor.resize(w, h));
+    }
+    public void showScaledUp(ImagePlus imp){
+        ImageProcessor imageProcessor = imp.getProcessor().duplicate();
+        int h = imageProcessor.getHeight() * scale;
+        int w = imageProcessor.getWidth() * scale;
+        imageProcessor = imageProcessor.resize(w, h);
+        ImagePlus newImage = new ImagePlus(imp.getTitle(), imageProcessor);
+        newImage.show();
+    }
     public int getScale(){
         return scale;
     }
@@ -46,16 +64,22 @@ public class ImageManager {
     }
 
     public void DrawScaleBar(ImagePlus imp){
+        IJ.setTool("line");
         //TODO make a loop if fail first time
-        WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Draw a line and click OK.");
-        wfud.show();
+        while(true){
+            WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Draw a line and click OK.");
+            wfud.show();
 
-        Roi roi = imp.getRoi();
-        if (roi == null || !(roi instanceof Line)) {
-            IJ.showMessage("Error", "Please draw a line ROI and try again.");
-            return;
+            Roi roi = imp.getRoi();
+            if (roi == null || !(roi instanceof Line)) {
+                IJ.showMessage("Error", "Please draw a line ROI and try again.");
+            }
+            else{
+                break;
+            }
         }
-        Line line = (Line) roi;
+
+        Line line = (Line) imp.getRoi();
         System.out.println("Line Coordinates: X1 = " + line.x1d + ", Y1 = " + line.y1d + ", X2 = " + line.x2d + ", Y2 = " + line.y2d);
         //double lengthInPixels = line.getLength();
         double lengthInPixels = calculateDistance(line.x1d, line.x2d, line.y1d, line.y2d);
@@ -84,7 +108,7 @@ public class ImageManager {
         ImageProcessor processorWithExcludedRegions = ip.duplicate();
         int borderSize = 50;
         ImageProcessor ipExt = ip.createProcessor(ip.getWidth() + 2 * borderSize, ip.getHeight() + 2 * borderSize);
-        ipExt.setColor(255); // White for 8-bit, adjust for other types
+        ipExt.setColor(255);
         ipExt.fill();
         ipExt.insert(ip, borderSize, borderSize);
 
@@ -93,55 +117,76 @@ public class ImageManager {
         impExt.show();
 
         // Instructions for the user
-        GenericDialog gd = new GenericDialog("Interactive Image Editing");
-        gd.addMessage("Draw polygons to exclude regions.\nDouble-click to finish.");
-        gd.showDialog();
+//        GenericDialog gd = new GenericDialog("Interactive Image Editing");
+//        gd.addMessage("Draw polygons to exclude regions.\nDouble-click to finish.");
+//        gd.showDialog();
 //        if (gd.wasCanceled()) {
-//            return;
+//            return null;
 //        }
 
         // User interaction for drawing polygons and excluding regions
+        IJ.setTool("polygon");
         boolean isEmptyPolygon = false;
         RoiManager roiManager = new RoiManager();
 
 
-//        while (!isEmptyPolygon) {
-//
-////            WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Draw a polygon and click OK.");
-////            wfud.show();
-////
-////            if (wfud.escPressed()) break; // Exit on escape
-//
-//            Roi roi = impExt.getRoi();
-//            roi.getPolygon();
-//            if (roi != null && roi.getType() == Roi.POLYGON) {
-//                roiManager.addRoi(roi);
-//                ImageStatistics stats = impExt.getStatistics(Measurements.AREA);
-//                if (stats.area <= 0) {
-//                    isEmptyPolygon = true;
-//                } else {
-//                    ipExt.setColor(255); // Set excluded regions to NaN, adjust for image type
-//                    ipExt.fill(roi);
-//                    impExt.updateAndDraw();
-//                }
-//                impExt.killRoi(); // Remove the drawn polygon
-//            }
-//        }
+        while (!isEmptyPolygon) {
+
+            WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Draw a polygon and click OK.");
+            wfud.show();
+
+            if (wfud.escPressed()) break; // Exit on escape
+
+            Roi roi = impExt.getRoi();
+            roi.getPolygon();
+            if (roi != null && roi.getType() == Roi.POLYGON) {
+                roiManager.addRoi(roi);
+                ImageStatistics stats = impExt.getStatistics(Measurements.AREA);
+                if (stats.area <= 0) {
+                    isEmptyPolygon = true;
+                } else {
+                    ipExt.setColor(255);
+                    ipExt.fill(roi);
+                    impExt.updateAndDraw();
+                }
+                impExt.killRoi(); // Remove the drawn polygon
+            }
+        }
         ImageProcessor ipCropped = ipExt.duplicate(); // Duplicate to preserve the extended image
         ipCropped.setRoi(borderSize, borderSize, ip.getWidth(), ip.getHeight());
         ImageProcessor croppedImg = ipCropped.crop();
 
-        for (int x = 0; x < croppedImg.getWidth(); x++) {
-            for (int y = 0; y < croppedImg.getHeight(); y++) {
-                if (croppedImg.getPixel(x, y) == 255) { // Check if the pixel is part of an excluded region
-                    processorWithExcludedRegions.putPixel(x, y, 255); //set to white in original image
+        exclusionMask = new boolean[height][width];
+        // Get ROIs and create the exclusion mask
+        Roi[] rois = roiManager.getRoisAsArray();
+        for (Roi roi : rois) {
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    if (roi.contains(x, y)) {
+                        exclusionMask[y][x] = true;
+                    }
                 }
             }
         }
+
+//        for (int x = 0; x < croppedImg.getWidth(); x++) {
+//            for (int y = 0; y < croppedImg.getHeight(); y++) {
+//                if (croppedImg.getPixel(x, y) == 255) { // Check if the pixel is part of an excluded region
+//                    processorWithExcludedRegions.putPixel(x, y, 255); //set to white in original image
+//                }
+//            }
+//        }
         //Finalize editing
         impExt.changes = false;
         impExt.close();
+        IJ.setTool("hand");
         return processorWithExcludedRegions;
+    }
+    private void checkProcessor(ImagePlus imp){
+        if(!(ip instanceof ByteProcessor)){
+            ip = ip.convertToByte(false);
+            imp.setProcessor(ip);
+        }
     }
 
     public double getConversionFactor() {

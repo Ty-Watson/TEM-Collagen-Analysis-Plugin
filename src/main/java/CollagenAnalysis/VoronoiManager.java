@@ -11,6 +11,8 @@ import ij.process.ColorProcessor;
 import ij.process.ImageProcessor;
 
 import smile.classification.KNN;
+import smile.neighbor.KDTree;
+import smile.neighbor.Neighbor;
 
 import java.awt.*;
 import java.awt.event.AWTEventListener;
@@ -47,11 +49,11 @@ public class VoronoiManager {
     int[] nearestCentroidIndices;
     List<int[]> _allpixels = new ArrayList<>();
 
-    public ImagePlus Interpolation(ImageProcessor ip){
+    public ImagePlus Interpolation(ImageProcessor ip, ArrayList<double[]> centroids){
         ImageProcessor p = ip.duplicate();
         ImagePlus n = new ImagePlus("Filtered image before Interpolation", ip);
         //n.show();
-        double[] charIntensities = generateCharCellIntensity(ip);
+        double[] charIntensities = generateCharCellIntensity(ip, centroids);
         Interpolator interpolator = new Interpolator(centroids, charIntensities);
         ImageProcessor testp = p.duplicate();
         ImagePlus test = new ImagePlus("interpolatedIntesity", testp);
@@ -92,7 +94,7 @@ public class VoronoiManager {
         return transformedIntensity;
     }
 
-    public double[] generateCharCellIntensity(ImageProcessor ip){
+    public double[] generateCharCellIntensity(ImageProcessor ip, ArrayList<double[]> centroids){
 
         int width = ip.getWidth();
         int height = ip.getHeight();
@@ -107,8 +109,8 @@ public class VoronoiManager {
             }
         }
 
-        double[] charCellIntensity = computeIntensities(pixelIntensities, nearestCentroidDistances, nearestCentroidIndices, centroids.size());
-        double[] charCellIntensity2 = computeIntensities2(pixelIntensities, nearestCentroidDistances, nearestCentroidIndices, ip);
+        //double[] charCellIntensity = computeIntensities(pixelIntensities, nearestCentroidDistances, nearestCentroidIndices, centroids.size());
+        double[] charCellIntensity2 = computeIntensities2(pixelIntensities, nearestCentroidDistances, nearestCentroidIndices, ip, centroids);
 
 
         //charCellIntensity now contains the characteristic intensity for each cell
@@ -349,7 +351,7 @@ public class VoronoiManager {
 
         return charCellIntensity;
     }
-    public double[] computeIntensities2(List<Double> pixelIntensities, double[] nearest_centroid_dist_all, int[] nearest_centroid_idx_all, ImageProcessor ip) {
+    public double[] computeIntensities2(List<Double> pixelIntensities, double[] nearest_centroid_dist_all, int[] nearest_centroid_idx_all, ImageProcessor ip, ArrayList<double[]> centroids) {
 // The result array
         double[] char_cell_intensity = new double[centroids.size()];
         Arrays.fill(char_cell_intensity, Double.NaN);
@@ -420,8 +422,123 @@ public class VoronoiManager {
     public void SetNearestCentroidDistances(double[] nearestCentroidDistances){
         this.nearestCentroidDistances = nearestCentroidDistances;
     }
-    public List<double[]> getCentroids(){
+    public ArrayList<double[]> getCentroids(){
         return centroids;
+    }
+
+    public ArrayList<double[]> identifyBoundaryFibrils(boolean[][] exclusionMask, ArrayList<double[]> pixels) {
+//        List<Vertex> voronoiVertices = new ArrayList<>();
+//        List<List<Integer>> voronoiCells = new ArrayList<>();
+//
+//        // Extract Voronoi vertices and cells from the Voronoi diagram
+//        for (Point centroid : voronoi_centroids) {
+//            Set<Vertex> cellVertices = cells.get(centroid);
+//            List<Integer> cellIndices = new ArrayList<>();
+//            for (Vertex vertex : cellVertices) {
+//                voronoiVertices.add(vertex);
+//                cellIndices.add(voronoiVertices.size() - 1);
+//            }
+//            voronoiCells.add(cellIndices);
+//        }
+//
+//        // Perform nearest neighbor search for Voronoi vertices
+//        int[] nearestPixelIndices = nearestNeighborSearch(pixels, voronoiVertices);
+
+
+        boolean[] isBoundaryCentroid = new boolean[voronoi_centroids.size()];
+        ArrayList<double[]> nonBoundryCentroids = new ArrayList<>();
+        for(double[] centroid: centroids){
+            Point centroidPont = new Point(centroid[0], centroid[1]);
+            Set<Vertex> cellVertices = cells.get(centroidPont);
+            boolean isBoundary = false;
+
+            for(Vertex v : cellVertices){
+                Point locationPoint = v.getLocation();
+                double[] location = new double[]{locationPoint.x, locationPoint.y};
+                if (location[0] < 0 || location[1] < 0 || location[0] >= ip.getWidth() || location[1] >= ip.getHeight()) {
+                    isBoundary = true;
+                    break;
+                }
+            }
+            if(!isBoundary){
+                nonBoundryCentroids.add(centroid);
+            }
+        }
+        return nonBoundryCentroids;
+//        for (int i = 0; i < voronoiCells.size(); i++) {
+//            List<Integer> cell = voronoiCells.get(i);
+//            boolean isBoundary = false;
+//
+//            for (int idx : cell) {
+//                Vertex vertex = voronoiVertices.get(idx);
+//                Point locationPoint = vertex.getLocation();
+//                double[] location = new double[]{locationPoint.x, locationPoint.y};
+//                if (location[0] < 0 || location[1] < 0 || location[0] >= ip.getWidth() || location[1] >= ip.getHeight()) {
+//                    isBoundary = true;
+//                    break;
+//                }
+//
+////                // Check exclusion mask
+////                int nearestPixelIndex = nearestPixelIndices[idx];
+////                double[] nearestPixel = pixels.get(nearestPixelIndex);
+////                if (exclusionMask[(int) nearestPixel[1]][(int) nearestPixel[0]]) {
+////                    isBoundary = true;
+////                    break;
+////                }
+//            }
+//
+//            isBoundaryCentroid[i] = isBoundary;
+//        }
+//
+//        // Output results
+//        for (int i = 0; i < isBoundaryCentroid.length; i++) {
+//            System.out.println("Centroid " + i + " is boundary: " + isBoundaryCentroid[i]);
+//        }
+        //return isBoundaryCentroid;
+    }
+    public ArrayList<Boolean> identifyBoundaryFibrilsBoolean(boolean[][] exclusionMask, ArrayList<double[]> pixels) {
+
+        ArrayList<Boolean> isBoundaryCentroid = new ArrayList<Boolean>();
+        for(Point centroid: voronoi_centroids){
+            Set<Vertex> cellVertices = cells.get(centroid);
+            boolean isBoundary = false;
+
+            for(Vertex v : cellVertices){
+                Point locationPoint = v.getLocation();
+                double[] location = new double[]{locationPoint.x, locationPoint.y};
+                if (location[0] < 0 || location[1] < 0 || location[0] >= ip.getWidth() || location[1] >= ip.getHeight()) {
+                    isBoundary = true;
+                    break;
+                }
+            }
+           isBoundaryCentroid.add(isBoundary);
+        }
+        return isBoundaryCentroid;
+//
+    }
+    private int[] nearestNeighborSearch(ArrayList<double[]> pixels, List<Vertex> voronoiVertices) {
+
+
+        // Convert the list of pixels to an array for KDTree
+        double[][] pixelArray = pixels.toArray(new double[0][]);
+
+        // Create a KD-tree for the pixels
+        KDTree<double[]> pixelTree = KDTree.of(pixelArray);
+
+        // Perform the nearest neighbor search for Voronoi vertices
+        int[] nearestPixelIndices = new int[voronoiVertices.size()];
+        for (int i = 0; i < voronoiVertices.size(); i++) {
+            Point vertexLocationPoint = voronoiVertices.get(i).getLocation();
+            double[] vertexLocation = new double[]{vertexLocationPoint.x, vertexLocationPoint.y};
+            Neighbor<double[], double[]> nearest = pixelTree.nearest(vertexLocation);
+            nearestPixelIndices[i] = nearest.index;
+        }
+
+        // Output or use the nearest pixel indices
+        for (int i = 0; i < nearestPixelIndices.length; i++) {
+            System.out.println("Voronoi Vertex " + i + " nearest pixel index: " + nearestPixelIndices[i]);
+        }
+        return nearestPixelIndices;
     }
 
 }

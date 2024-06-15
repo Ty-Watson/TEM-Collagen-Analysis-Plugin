@@ -116,7 +116,7 @@ public class GaussianMixtureModel {
         //calculatePosteriorProbabilityMatrix();
     }
 
-    public void mStep(int k, int totalIterations,  boolean adjustMu){
+    private void mStep(int k, int totalIterations,  boolean adjustMu){
         double[] sumP = new double[centroidLength];
         double[] sumPxX = new double[centroidLength];
         double[] sumPxY = new double[centroidLength];
@@ -180,7 +180,7 @@ public class GaussianMixtureModel {
 
     }
 
-    public void mStepCombined(int k, int totalIterations){
+    private void mStepCombined(int k, int totalIterations){
         double[] sumP = new double[centroidLength];
         double[] sumPxX = new double[centroidLength];
         double[] sumPxY = new double[centroidLength];
@@ -501,7 +501,13 @@ public class GaussianMixtureModel {
 
         // Return the PDF in the log domain or exponentiate if necessary, checking for underflow
         double result = Math.exp(logPdfValue);
-        return result;
+        if(Double.isNaN(result)){
+            return 0;
+        }
+        else{
+            return result;
+        }
+
 
 //        try{
 //            MultivariateNormalDistribution md = new MultivariateNormalDistribution(mu, sigma);
