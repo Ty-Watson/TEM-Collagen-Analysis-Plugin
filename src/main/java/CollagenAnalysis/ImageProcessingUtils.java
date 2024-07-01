@@ -19,6 +19,7 @@ import java.io.*;
 import java.util.ArrayList;
 
 public class ImageProcessingUtils {
+
     public static int findNearestEllipse(int clickX, int clickY, ArrayList<double[]> centroids) {
         double minDistance = Double.MAX_VALUE;
         int nearestEllipseIndex = -1;
@@ -316,9 +317,15 @@ public class ImageProcessingUtils {
         for (int y = 0; y <bp.getHeight(); y++) {
             for (int x = 0; x < bp.getWidth(); x++) {
                 float value =bp.getPixel(x, y);
+                if(Float.isNaN(value)){
+                    bp.setf(x, y, 255.0f);
+                    continue;
+                }
+
                 if (value <= otsuThreshold) {
                     bp.setf(x, y, 0.0f); // Set pixels below the threshold to 0
-                } else {
+                }
+                else {
                     bp.setf(x, y, 255.0f); // Set pixels above the threshold to 255
                 }
             }
@@ -521,7 +528,8 @@ public class ImageProcessingUtils {
         overlayedImage.show();
     }
 
-    public static ImagePlus applyGaussianFiltering(ImageProcessor ip){
+    public static ImagePlus applyGaussianFiltering(ImageProcessor ipp){
+        ImageProcessor ip = ipp.duplicate();
         // Calculate the sigma for the Gaussian filter
         double smallestDimension = Math.min(ip.getWidth(), ip.getHeight());
         double gsigma = smallestDimension * 0.003; // 0.3% of the smallest dimension

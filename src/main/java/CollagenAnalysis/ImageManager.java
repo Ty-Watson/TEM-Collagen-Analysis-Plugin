@@ -44,12 +44,14 @@ public class ImageManager {
     }
     public void scaleUp(ImagePlus imp){
         ImageProcessor imageProcessor = imp.getProcessor().duplicate();
+        //drawExcludedRegions(imageProcessor);
         int h = imageProcessor.getHeight() * scale;
         int w = imageProcessor.getWidth() * scale;
         imp.setProcessor(imageProcessor.resize(w, h));
     }
     public void showScaledUp(ImagePlus imp){
         ImageProcessor imageProcessor = imp.getProcessor().duplicate();
+        //drawExcludedRegions(imageProcessor);
         int h = imageProcessor.getHeight() * scale;
         int w = imageProcessor.getWidth() * scale;
         imageProcessor = imageProcessor.resize(w, h);
@@ -67,7 +69,7 @@ public class ImageManager {
         IJ.setTool("line");
         //TODO make a loop if fail first time
         while(true){
-            WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Draw a line and click OK.");
+            WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Draw a line for the scale bar then click ok");
             wfud.show();
 
             Roi roi = imp.getRoi();
@@ -132,7 +134,7 @@ public class ImageManager {
 
         while (!isEmptyPolygon) {
 
-            WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Draw a polygon and click OK.");
+            WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Draw a polygon to exclude any regions then press ok. Press escape once you are finished.");
             wfud.show();
 
             if (wfud.escPressed()) break; // Exit on escape
@@ -156,14 +158,14 @@ public class ImageManager {
         ipCropped.setRoi(borderSize, borderSize, ip.getWidth(), ip.getHeight());
         ImageProcessor croppedImg = ipCropped.crop();
 
-        exclusionMask = new boolean[height][width];
+        exclusionMask = new boolean[width][height];
         // Get ROIs and create the exclusion mask
         Roi[] rois = roiManager.getRoisAsArray();
         for (Roi roi : rois) {
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     if (roi.contains(x, y)) {
-                        exclusionMask[y][x] = true;
+                        exclusionMask[x][y] = true;
                     }
                 }
             }
@@ -172,7 +174,7 @@ public class ImageManager {
 //        for (int x = 0; x < croppedImg.getWidth(); x++) {
 //            for (int y = 0; y < croppedImg.getHeight(); y++) {
 //                if (croppedImg.getPixel(x, y) == 255) { // Check if the pixel is part of an excluded region
-//                    processorWithExcludedRegions.putPixel(x, y, 255); //set to white in original image
+//                    processorWithExcludedRegions.putPixelValue(x, y, 255); //set to black in original image
 //                }
 //            }
 //        }
@@ -180,7 +182,17 @@ public class ImageManager {
         impExt.changes = false;
         impExt.close();
         IJ.setTool("hand");
+
         return processorWithExcludedRegions;
+    }
+    public void drawExcludedRegions(ImageProcessor ip){
+        for (int y = 0; y < ip.getHeight(); y++) {
+            for (int x = 0; x < ip.getWidth(); x++) {
+                if (exclusionMask[x][y]) {
+                    ip.putPixelValue(x, y, 0);
+                }
+            }
+        }
     }
     private void checkProcessor(ImagePlus imp){
         if(!(ip instanceof ByteProcessor)){

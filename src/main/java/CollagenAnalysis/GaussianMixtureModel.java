@@ -74,7 +74,7 @@ public class GaussianMixtureModel {
             for(int k = 0; k < totalIterations / 2; k++){
                 System.out.println("First iteration step " + k);
                 //progressBar.setStatus("Fitting Gaussian mixture model");
-                IJ.showStatus("Fitting Gaussian mixture model");
+                IJ.showStatus("Fitting Gaussian Mixture Model");
 
                 // E-step: Recalculate responsibilities
                 //use the initial guess of prob matrix first because component proportions have not been calculated yet

@@ -45,7 +45,7 @@ public class EllipseFitting {
         this.post_fibril = post_fibril;
         this.nonboundryCentroids = nonBoundryCentroids;
         ip = imp.getProcessor().duplicate().convertToColorProcessor();
-        this.imp = new ImagePlus("EllipseFitting", ip);
+        this.imp = new ImagePlus("Ellipse Fitting", ip);
         this.imp.show();
         setCanvasEvents();
     }

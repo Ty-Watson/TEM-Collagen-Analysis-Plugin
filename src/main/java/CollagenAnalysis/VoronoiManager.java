@@ -27,13 +27,15 @@ import static CollagenAnalysis.ImageProcessingUtils.findNearestCentroid;
 
 
 public class VoronoiManager {
-    public VoronoiManager(ImagePlus imp){
+    public VoronoiManager(ImagePlus imp, ImageManager imageManager){
 
         ip = imp.getProcessor().duplicate();
         this.imp = new ImagePlus("Voronoi", ip);
         this.imp.show();
+        this.imageManager = imageManager;
         setCanvasEvents();
     }
+    private ImageManager imageManager;
     private ImagePlus imp;
     private ImageProcessor ip;
     public Voronoi voronoi;
@@ -189,6 +191,9 @@ public class VoronoiManager {
             Point b = e.getB().getLocation();
             ip.drawLine((int) a.x,  (int)a.y, (int) b.x, (int) b.y);
         });
+
+        //imageManager.drawExcludedRegions(ip);
+
         imp.updateAndDraw();
         overlayMaxima(centroids, Color.red.getRGB());
     }
@@ -456,6 +461,10 @@ public class VoronoiManager {
                 Point locationPoint = v.getLocation();
                 double[] location = new double[]{locationPoint.x, locationPoint.y};
                 if (location[0] < 0 || location[1] < 0 || location[0] >= ip.getWidth() || location[1] >= ip.getHeight()) {
+                    isBoundary = true;
+                    break;
+                }
+                else if(exclusionMask[(int)location[0]][(int)location[1]]){
                     isBoundary = true;
                     break;
                 }
