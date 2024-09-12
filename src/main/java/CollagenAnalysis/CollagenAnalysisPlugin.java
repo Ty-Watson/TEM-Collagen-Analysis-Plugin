@@ -77,22 +77,17 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         }
 
         String imageName = IJ.getImage().getTitle();
-        int dotIndex = imageName.lastIndexOf('.');
-        if (dotIndex > 0 && dotIndex <= imageName.length() - 2) {
-            imageName = imageName.substring(0, dotIndex);
-        }
-        // Get the path of the image currently open in ImageJ
-        String userHome = System.getProperty("user.home");
-        Path downloadsPath = Paths.get(userHome, "Downloads");
-        Path newFolderPath = downloadsPath.resolve(imageName);
-        try {
-            Files.createDirectories(newFolderPath);
-            System.out.println("Folder created at: " + newFolderPath.toString());
-        } catch (IOException e) {
-            e.printStackTrace();
-            IJ.error("Failed to create directory: " + newFolderPath.toString());
-            return;
-        }
+
+
+//        Path newFolderPath = downloadsPath.resolve(imageName);
+//        try {
+//            Files.createDirectories(newFolderPath);
+//            System.out.println("Folder created at: " + newFolderPath.toString());
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            IJ.error("Failed to create directory: " + newFolderPath.toString());
+//            return;
+//        }
 
 
         ArrayList<ImagePlus> imagesToSave = new ArrayList<>();
@@ -108,9 +103,9 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         // Create extended image with white border
         ImageProcessor processorWithExcludedRegions = imageManager.excludeRegions();
-        ImagePlus imageAfterUserExclude = new ImagePlus("Image after excluding regions ", processorWithExcludedRegions);
+        //ImagePlus imageAfterUserExclude = new ImagePlus("Image after excluding regions ", processorWithExcludedRegions);
         //imageManager.showScaledUp(imageAfterUserExclude);
-        imageAfterUserExclude.show();
+        //imageAfterUserExclude.show();
 
 
         //IJ.showMessage("Interactive Image Editing", "Editing complete.");
@@ -129,18 +124,20 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         FloatProcessor ip3 = ip2.duplicate().convertToFloatProcessor();
 
-//        for (int x = 0; x < ip3.getWidth(); x++) {
-//            for (int y = 0; y < ip3.getHeight(); y++) {
-//                if (imageManager.exclusionMask[x][y]) { // Check if the pixel is part of an excluded region
-//                    ip3.putPixelValue(x, y, 255); // Set excluded pixels to 0 in the original image which turns them black
-//                }
-//            }
-//        }
+        ip3.putPixelValue(0,0,Double.NaN);
+        for (int x = 0; x < ip3.getWidth(); x++) {
+            for (int y = 0; y < ip3.getHeight(); y++) {
+                if (imageManager.exclusionMask[x][y]) { // Check if the pixel is part of an excluded region
+                    ip3.putPixelValue(x, y, Double.NaN); // Set excluded pixels to 0 in the original image which turns them black
+                }
+            }
+        }
 
         //binarize the smoothed img using Otsu optimal threshold
         ByteProcessor binary1 = binarizeUsingOtsu(ip3);
         ImagePlus binaryImg = new ImagePlus("Initial binary attempt",binary1);
-        imageManager.showScaledUp(binaryImg);
+        binaryImg.show();
+        //imageManager.showScaledUp(binaryImg);
 
 
         //overlay the binarized img(in red) with the original
@@ -225,18 +222,19 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         FloatProcessor ip4 = smooth2.getProcessor().duplicate().convertToFloatProcessor();
 
-//        for (int x = 0; x < ip3.getWidth(); x++) {
-//            for (int y = 0; y < ip3.getHeight(); y++) {
-//                if (ip4.getPixel(x, y) == 0) { // Check if the pixel is part of an excluded region
-//                    ip4.putPixel(x, y, 255); // Set excluded pixels to 0 in the original image which turns them black
-//                }
-//            }
-//        }
+        for (int x = 0; x < ip4.getWidth(); x++) {
+            for (int y = 0; y < ip4.getHeight(); y++) {
+                if (imageManager.exclusionMask[x][y]) { // Check if the pixel is part of an excluded region
+                    ip4.putPixelValue(x, y, Double.NaN); // Set excluded pixels to 0 in the original image which turns them black
+                }
+            }
+        }
 
         //binarize the smoothed img using Otsu optimal threshold
         ImageProcessor binary2 = binarizeUsingOtsu(ip4);
         ImagePlus binaryImg2 = new ImagePlus("Final binary attempt", binary2);
-        imageManager.showScaledUp(binaryImg2);
+        binaryImg2.show();
+       // imageManager.showScaledUp(binaryImg2);
 
         ImageProcessor binaryOverlay = originalImgScaled.getProcessor().duplicate().convertToColorProcessor();
         OverlayManager.overlayBinaryAttempts(binaryOverlay, binary1, binary2);
@@ -426,6 +424,30 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         radius_nm.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * nanometers_over_pixels));
 
 
+
+        // Create Directory
+
+
+        int dotIndex = imageName.lastIndexOf('.');
+        if (dotIndex > 0 && dotIndex <= imageName.length() - 2) {
+            imageName = imageName.substring(0, dotIndex);
+        }
+        // Get the path of the image currently open in ImageJ
+//        String userHome = System.getProperty("user.home");
+//        Path downloadsPath = Paths.get(userHome, "Downloads");
+        String path = IJ.getDirectory("Choose a directory to create");
+        Path newFolderPath;
+
+        if (path != null) {
+            createDirectory(path + imageName);
+            newFolderPath = Paths.get(path + imageName);
+        } else {
+            IJ.showMessage("No directory chosen to save images");
+            newFolderPath = null;
+        }
+
+
+
         // OUTPUT RESULT
 
         try{
@@ -486,6 +508,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
             imageManager.scaleUp(image);
             String fileName = image.getTitle();
             String savePath = newFolderPath.resolve(fileName + ".tiff").toString();
+            //String savePath = newFolderPath + fileName + ".tiff";
             FileSaver fileSaver = new FileSaver(image);
             if(fileSaver.saveAsTiff(savePath)){
                 System.out.println("Saved " + fileName);
@@ -525,6 +548,27 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         return true;
     }
+
+    public void createDirectory(String path) {
+        File directory = new File(path);
+
+        if (!directory.exists()) {
+            try {
+                boolean isCreated = directory.mkdirs();
+
+                if (isCreated) {
+                    IJ.showMessage("Directory created successfully: " + path);
+                } else {
+                    IJ.showMessage("Failed to create directory: " + path);
+                }
+            } catch (SecurityException e) {
+                IJ.showMessage("Permission denied: Unable to create directory. " + e.getMessage());
+            }
+        } else {
+            IJ.showMessage("Directory already exists: " + path);
+        }
+    }
+
 
 
 

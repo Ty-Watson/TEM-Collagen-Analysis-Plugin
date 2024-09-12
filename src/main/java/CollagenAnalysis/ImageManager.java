@@ -154,18 +154,21 @@ public class ImageManager {
                 impExt.killRoi(); // Remove the drawn polygon
             }
         }
-        ImageProcessor ipCropped = ipExt.duplicate(); // Duplicate to preserve the extended image
-        ipCropped.setRoi(borderSize, borderSize, ip.getWidth(), ip.getHeight());
-        ImageProcessor croppedImg = ipCropped.crop();
+//        ImageProcessor ipCropped = ipExt.duplicate(); // Duplicate to preserve the extended image
+//        ipCropped.setRoi(borderSize, borderSize, ip.getWidth(), ip.getHeight());
+//        ImageProcessor croppedImg = ipCropped.crop();
 
-        exclusionMask = new boolean[width][height];
+        exclusionMask = new boolean[ip.getWidth()][ip.getHeight()];
         // Get ROIs and create the exclusion mask
         Roi[] rois = roiManager.getRoisAsArray();
         for (Roi roi : rois) {
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    if (roi.contains(x, y)) {
+            // Shift the ROI coordinates back to the original image coordinate system
+            roi.setLocation(roi.getBounds().x - borderSize, roi.getBounds().y - borderSize);
+            for (int y = 0; y < ip.getHeight(); y++) {
+                for (int x = 0; x < ip.getWidth(); x++) {
+                    if (roi.contains(x,y)) {
                         exclusionMask[x][y] = true;
+//                        ipCropped.putPixelValue(x, y, 255);
                     }
                 }
             }
@@ -174,7 +177,7 @@ public class ImageManager {
 //        for (int x = 0; x < croppedImg.getWidth(); x++) {
 //            for (int y = 0; y < croppedImg.getHeight(); y++) {
 //                if (croppedImg.getPixel(x, y) == 255) { // Check if the pixel is part of an excluded region
-//                    processorWithExcludedRegions.putPixelValue(x, y, 255); //set to black in original image
+//                    processorWithExcludedRegions.putPixelValue(x, y, Double.NaN); //set to black in original image
 //                }
 //            }
 //        }

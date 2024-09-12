@@ -317,7 +317,7 @@ public class ImageProcessingUtils {
         for (int y = 0; y <bp.getHeight(); y++) {
             for (int x = 0; x < bp.getWidth(); x++) {
                 float value =bp.getPixel(x, y);
-                if(Float.isNaN(value)){
+                if(value == 0){
                     bp.setf(x, y, 255.0f);
                     continue;
                 }
