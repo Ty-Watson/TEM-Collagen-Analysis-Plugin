@@ -1,8 +1,11 @@
 package CollagenAnalysis;
 
+import ij.ImagePlus;
+import ij.process.ImageProcessor;
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.RealMatrix;
 
+import java.awt.*;
 import java.util.ArrayList;
 
 public class FibrilUtils {
@@ -10,9 +13,71 @@ public class FibrilUtils {
 
     public ArrayList<double[]> muForEachFibril = new ArrayList<>();
     public ArrayList<double[][]> covarianceForEachFibril = new ArrayList<>();
+
+    public ArrayList<double[]> problematicCentroids = new ArrayList<>();
+    public ArrayList<double[]> _centroids = new ArrayList<>();
     //public ArrayList<RealMatrix> covariance = new ArrayList<>();
     public FibrilUtils(){
 
+    }
+
+    public void validateCovariance(ImageProcessor ip){
+        for(int i = 0; i < covarianceForEachFibril.size(); i++){
+            double[][] matrix = covarianceForEachFibril.get(i);
+            boolean hasProblem = false;
+
+            for(int row = 0; row < matrix.length; row++){
+                for(int col = 0; col < matrix[row].length; col++){
+                    double value = matrix[row][col];
+                    if (Double.isNaN(value) || Double.isInfinite(value)) {
+                        hasProblem = true;
+                        break;
+                    }
+                }
+                if(hasProblem)break;
+            }
+            if(hasProblem){
+                problematicCentroids.add(_centroids.get(i));
+                //remove problematic centroid;
+                muForEachFibril.remove(i);
+                covarianceForEachFibril.remove(i);
+            }
+        }
+        if (problematicCentroids.isEmpty()) {
+            System.out.println("No problematic centroids found.");
+        } else {
+            //generateImageWithProblematicCentroids(ip);
+            System.out.println("Problematic centroids at coordinates:");
+            for (double[] centroid : problematicCentroids) {
+                System.out.println("Centroid: (" + centroid[0] + ", " + centroid[1] + ")");
+            }
+        }
+    }
+
+    private void generateImageWithProblematicCentroids(ImageProcessor ip){
+        // Size of the maxima point to be drawn (radius of the circle around the maxima point)
+        int pointSize = 2; // This can be adjusted based on how big you want the maxima points to be
+
+        // Draw each maximum point as a red circle on the RGB image
+        for (double[] point : problematicCentroids) {
+            double x = point[0];
+            double y = point[1];
+
+            // Draw a circle or a larger point at (x, y) in red
+            for (int dx = -pointSize; dx <= pointSize; dx++) {
+                for (int dy = -pointSize; dy <= pointSize; dy++) {
+                    if (dx * dx + dy * dy <= pointSize * pointSize) {
+                        double newX = x + dx;
+                        double newY = y + dy;
+                        if (newX >= 0 && newX < ip.getWidth() && newY >= 0 && newY < ip.getHeight()) {
+                            ip.set((int)newX, (int)newY, Color.red.getRGB());
+                        }
+                    }
+                }
+            }
+        }
+        ImagePlus img = new ImagePlus("Problematic Centroids", ip.duplicate());
+        img.show();
     }
 
     private void validateCovariance(){
@@ -30,6 +95,7 @@ public class FibrilUtils {
                 for (int col = 0; col < regularizedCovMatrix.getColumnDimension(); col++) {
                     double value = regularizedCovMatrix.getEntry(row, col);
                     if (Double.isNaN(value) || Double.isInfinite(value)) {
+                        //which component, which centroid, print cov matrix, centroid coordinates, print image with trouble centroids. see why image is all white sometimes.
                         throw new IllegalStateException("Covariance matrix contains NaN or infinite values");
 //                        regularizedCovMatrix.setEntry(row, col, 0);
 //                        covariance.add(regularizedCovMatrix);
@@ -45,6 +111,7 @@ public class FibrilUtils {
     }
 
     public void calculateMuAndCovarianceForEachFibril(ArrayList<double[]> fibrilPixels, ArrayList<double[]> centroids, int[] cluster_idx){
+        _centroids = centroids;
         ArrayList<double[]> fibrilPixelsForThisCentroid = new ArrayList<>();
         int[] numberOfPixelsForEachCentroid = new int[centroids.size()];
 
@@ -115,7 +182,7 @@ public class FibrilUtils {
 
             covarianceForEachFibril.add(cov);
         }
-        validateCovariance();
+       // validateCovariance();
     }
 
 

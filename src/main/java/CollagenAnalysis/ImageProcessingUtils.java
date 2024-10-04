@@ -305,6 +305,7 @@ public class ImageProcessingUtils {
     public static ByteProcessor binarizeUsingOtsu(FloatProcessor fp) {
         // Convert FloatProcessor to ByteProcessor for histogram calculation
         ByteProcessor bp = fp.duplicate().convertToByteProcessor();
+       // ByteProcessor bp2 = bp.duplicate().convertToByteProcessor();
 
         // Calculate histogram
         int[] histogram = bp.getHistogram();
@@ -316,7 +317,7 @@ public class ImageProcessingUtils {
         // Apply Otsu's threshold to the FloatProcessor
         for (int y = 0; y <bp.getHeight(); y++) {
             for (int x = 0; x < bp.getWidth(); x++) {
-                float value =bp.getPixel(x, y);
+                float value =bp.getPixelValue(x, y);
                 if(value == 0){
                     bp.setf(x, y, 255.0f);
                     continue;
@@ -332,6 +333,51 @@ public class ImageProcessingUtils {
         }
         return bp;
     }
+    public static ByteProcessor binarizeUsingOtsu(FloatProcessor fp, boolean[][] exclusionMask) {
+        // Convert FloatProcessor to ByteProcessor for histogram calculation
+        ByteProcessor bp = fp.duplicate().convertToByteProcessor();
+
+        // Calculate histogram, ignoring excluded regions
+        int[] histogram = new int[256];
+        for (int y = 0; y < bp.getHeight(); y++) {
+            for (int x = 0; x < bp.getWidth(); x++) {
+                if (exclusionMask[x][y]) {  // Skip excluded regions (mask value 255 for excluded)
+                    continue;
+                }
+                int pixelValue = bp.get(x, y);
+                histogram[pixelValue]++;
+            }
+        }
+
+        // Calculate Otsu's threshold
+        AutoThresholder thresholder = new AutoThresholder();
+        int otsuThreshold = thresholder.getThreshold(AutoThresholder.Method.Otsu, histogram);
+
+        // Apply Otsu's threshold, ignoring excluded regions
+        for (int y = 0; y < bp.getHeight(); y++) {
+            for (int x = 0; x < bp.getWidth(); x++) {
+                if (exclusionMask[x][y]) {
+                    bp.setf(x, y, 255.0f);// Skip excluded regions
+                    continue;
+                }
+
+                float value = bp.getPixelValue(x, y);
+                if (value == 0) {
+                    bp.setf(x, y, 255.0f);
+                    continue;
+                }
+
+                if (value <= otsuThreshold) {
+                    bp.setf(x, y, 0.0f);  // Set pixels below the threshold to 0
+                } else {
+                    bp.setf(x, y, 255.0f);  // Set pixels above the threshold to 255
+                }
+            }
+        }
+
+        return bp;
+    }
+
 
 
     public static double f(double[] coeffs, double u, double v) {

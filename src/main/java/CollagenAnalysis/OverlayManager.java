@@ -5,13 +5,20 @@ import de.alsclo.voronoi.Voronoi;
 import de.alsclo.voronoi.graph.Graph;
 import de.alsclo.voronoi.graph.Point;
 import ij.ImagePlus;
+import ij.gui.Line;
+import ij.gui.Overlay;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 
 import java.awt.*;
+import java.awt.geom.GeneralPath;
 import java.util.ArrayList;
 
 import static CollagenAnalysis.EllipseFitting.DEGREES;
+import ij.process.ImageProcessor;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.util.ArrayList;
 
 public  class OverlayManager {
 
@@ -73,6 +80,123 @@ public  class OverlayManager {
             }
         }
     }
+
+
+    public static void overlayContourLines(ImageProcessor contour, double[][][] post_all, Color lineColor) {
+        int numFibrils = post_all.length;
+        int height = contour.getHeight();
+        int width = contour.getWidth();
+
+        // Use Graphics2D for smooth lines and anti-aliasing
+        Graphics2D g2d = contour.getBufferedImage().createGraphics();
+        g2d.setColor(lineColor);
+        g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+
+        for (int i = 0; i < numFibrils; i++) {
+            // ArrayList to store boundary points
+            ArrayList<int[]> contourPoints = new ArrayList<>();
+
+            for (int m = 1; m < height - 1; m++) {
+                for (int n = 1; n < width - 1; n++) {
+                    double[] neighbors = {
+                            post_all[i][m - 1][n - 1], post_all[i][m - 1][n], post_all[i][m - 1][n + 1],
+                            post_all[i][m][n - 1], post_all[i][m][n], post_all[i][m][n + 1],
+                            post_all[i][m + 1][n - 1], post_all[i][m + 1][n], post_all[i][m + 1][n + 1]
+                    };
+
+                    double min = Double.MAX_VALUE;
+                    double max = Double.MIN_VALUE;
+
+                    for (double prob : neighbors) {
+                        if (prob < min) min = prob;
+                        if (prob > max) max = prob;
+                    }
+
+                    if (min < 0.5 && max > 0.5) {
+                        // This is a boundary pixel; add to contour points
+                        contourPoints.add(new int[]{n, m});
+                    }
+                }
+            }
+
+            // Draw lines between adjacent contour points
+            for (int j = 0; j < contourPoints.size() - 1; j++) {
+                int[] startPoint = contourPoints.get(j);
+                int[] endPoint = contourPoints.get(j + 1);
+
+                g2d.drawLine(startPoint[0], startPoint[1], endPoint[0], endPoint[1]);
+            }
+        }
+
+        g2d.dispose(); // Clean up
+        // Create an ImagePlus to show the image
+        ImagePlus imgWithContour = new ImagePlus("Image with Contour Lines", contour);
+        imgWithContour.show(); // Display the image with the drawn contours
+    }
+
+    public static void overlayContourLines2(ImageProcessor contour, double[][][] post_all, int color) {
+        int numFibrils = post_all.length;
+        int height = contour.getHeight();
+        int width = contour.getWidth();
+
+        // Create an overlay to store the contour lines
+        Overlay overlay = new Overlay();
+
+        for (int i = 0; i < numFibrils; i++) {
+            ArrayList<int[]> contourPoints = new ArrayList<>();
+
+            for (int m = 1; m < height - 1; m++) {
+                for (int n = 1; n < width - 1; n++) {
+                    double[] neighbors = {
+                            post_all[i][m - 1][n - 1], post_all[i][m - 1][n], post_all[i][m - 1][n + 1],
+                            post_all[i][m][n - 1], post_all[i][m][n], post_all[i][m][n + 1],
+                            post_all[i][m + 1][n - 1], post_all[i][m + 1][n], post_all[i][m + 1][n + 1]
+                    };
+
+                    double min = Double.MAX_VALUE;
+                    double max = Double.MIN_VALUE;
+
+                    for (double prob : neighbors) {
+                        if (prob < min) min = prob;
+                        if (prob > max) max = prob;
+                    }
+
+                    if (min < 0.5 && max > 0.5) {
+                        // Add to contour points if it's a boundary pixel
+                        contourPoints.add(new int[]{n, m});
+                    }
+                }
+            }
+
+            if (!contourPoints.isEmpty()) {
+                // Create a path for smoother contour lines
+                GeneralPath path = new GeneralPath();
+                int[] firstPoint = contourPoints.get(0);
+                path.moveTo(firstPoint[0], firstPoint[1]);
+
+                // Iterate over points and create a smooth path
+                for (int j = 1; j < contourPoints.size(); j++) {
+                    int[] point = contourPoints.get(j);
+                    path.lineTo(point[0], point[1]);
+                }
+
+                // Optionally, close the path if it's a closed contour
+                // path.closePath();
+
+                // Add the path to the overlay as a shape
+                ij.gui.ShapeRoi shapeRoi = new ij.gui.ShapeRoi(path);
+                shapeRoi.setStrokeColor(new Color(color));
+                shapeRoi.setStrokeWidth(1); // Set the stroke width for thin lines
+                overlay.add(shapeRoi);
+            }
+        }
+
+        // Apply the overlay to the image processor's ImagePlus and show the result
+        ImagePlus imageWithOverlay = new ImagePlus("Contour Lines", contour);
+        imageWithOverlay.setOverlay(overlay);
+        imageWithOverlay.show(); // Display the image
+    }
+
 
     public static void overlayVoronoi(ImageProcessor ip, Voronoi voronoi, int color){
         ip.setColor(color);

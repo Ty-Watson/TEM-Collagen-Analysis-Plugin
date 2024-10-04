@@ -35,6 +35,8 @@ public class EllipseFitting {
     private double[][] post_fibril;
 
     private ImagePlus imp;
+
+    private ImageProcessor original;
     private ImageProcessor ip;
     private ImageCanvas canvas;
 
@@ -44,7 +46,9 @@ public class EllipseFitting {
         this.cluster_idx = cluster_idx;
         this.post_fibril = post_fibril;
         this.nonboundryCentroids = nonBoundryCentroids;
-        ip = imp.getProcessor().duplicate().convertToColorProcessor();
+        this.ip = imp.getProcessor().duplicate().convertToColorProcessor();
+        this.original = imp.getProcessor().duplicate().convertToColorProcessor();
+        ip.snapshot();
         this.imp = new ImagePlus("Ellipse Fitting", ip);
         this.imp.show();
         setCanvasEvents();
@@ -58,7 +62,6 @@ public class EllipseFitting {
     }
 
     public  void fitEllipses(ArrayList<Boolean> isBoundryCentroid) {
-        ip.snapshot();
         //recalculate these when user deletes ellipse
         xEllipses.clear();
         yEllipses.clear();
@@ -67,11 +70,19 @@ public class EllipseFitting {
 
         FibrilUtils util = new FibrilUtils();
 
+        ImageProcessor test = ip.duplicate();
+
         util.calculateMuAndCovarianceForEachFibril(fibrilPixels, centroids, cluster_idx);
+        util.validateCovariance(test);
 
         ArrayList<double[][]> covarianceForEachFibril = util.covarianceForEachFibril;
         //ArrayList<RealMatrix> covariance = util.covariance;
         ArrayList<double[]> mus = util.muForEachFibril;
+        //remove prob centroids
+        for(double[] pCentroids : util.problematicCentroids){
+            centroids.remove(pCentroids);
+            nonboundryCentroids.remove(pCentroids);
+        }
 
         // Fit ellipses
         for (int i = 0; i < centroids.size(); i++) {
@@ -117,8 +128,8 @@ public class EllipseFitting {
                 double angle = Math.atan2(eigenVector[1], eigenVector[0]);
                 angle_of_major_axis.add(Math.toDegrees(angle));
                 System.out.println("Ellipse " + i + ": Major Radius = " + radiusPix[0] + ", Minor Radius = " + radiusPix[1] + ", Angle = " + angle);
-                System.out.println("NonBoundryCentroidCount: " + nonboundryCentroids.size());
-                System.out.println("all centroids: " + centroids.size());
+               // System.out.println("NonBoundryCentroidCount: " + nonboundryCentroids.size());
+                //System.out.println("all centroids: " + centroids.size());
 
 
 
@@ -160,9 +171,9 @@ public class EllipseFitting {
 
 
     private void drawEllipses(){
-        OverlayManager.drawEllipsesOnImage(ip, ellipses);
+        OverlayManager.drawEllipsesOnImage(imp.getProcessor(), ellipses);
         imp.updateAndDraw();
-        OverlayManager.overlayCentroids(ip, nonboundryCentroids.toArray(new double[nonboundryCentroids.size()][]), Color.red.getRGB());
+        OverlayManager.overlayCentroids(imp.getProcessor(), nonboundryCentroids.toArray(new double[nonboundryCentroids.size()][]), Color.red.getRGB());
         imp.updateAndDraw();
     }
 
@@ -192,10 +203,13 @@ public class EllipseFitting {
                         if (removedIndex != -1) {
                             //if click is not in ellipse, then dont remove centroid
                             nonboundryCentroids.remove(nearestCentroid);
-                            ip.reset();
+                            resetImage();
                             drawEllipses();
+                            // Ensure the ImagePlus window is updated after removing and redrawing
+
                         }
                     }
+                    e.consume();
                 }
             }
         });
@@ -215,6 +229,15 @@ public class EllipseFitting {
             }
         }
         return -1; // No ellipse contains the point
+    }
+    public void resetImage() {
+
+
+        // Reset to the original processor
+        imp.setProcessor(original.duplicate());
+
+        // Update the display to show the reset image
+        imp.updateAndDraw();
     }
 
 

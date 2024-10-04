@@ -23,7 +23,6 @@ public class ImageManager {
     private ImageProcessor ip;
     private int height;
     private int width;
-
     private double  conversionFactor;
 
     public boolean[][] exclusionMask;
@@ -198,10 +197,10 @@ public class ImageManager {
         }
     }
     private void checkProcessor(ImagePlus imp){
-        if(!(ip instanceof ByteProcessor)){
-            ip = ip.convertToByte(false);
-            imp.setProcessor(ip);
-        }
+//        if(!(ip instanceof ByteProcessor)){
+//            ip = ip.convertToByte(true);
+//            imp.setProcessor(ip);
+//        }
     }
 
     public double getConversionFactor() {

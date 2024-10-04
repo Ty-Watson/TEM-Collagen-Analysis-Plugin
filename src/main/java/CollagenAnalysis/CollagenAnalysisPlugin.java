@@ -37,6 +37,7 @@ import java.util.Arrays;
 
 import static CollagenAnalysis.ImageProcessingUtils.*;
 import static java.awt.Color.cyan;
+import static java.awt.Color.green;
 
 /**
 
@@ -122,19 +123,20 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         //smooth intensity values for binarization step
         ImagePlus imageAfterSmoothing = smoothIntensityValues(ip2);
 
-        FloatProcessor ip3 = ip2.duplicate().convertToFloatProcessor();
+        FloatProcessor ip3 = imageAfterSmoothing.getProcessor().duplicate().convertToFloatProcessor();
 
-        ip3.putPixelValue(0,0,Double.NaN);
-        for (int x = 0; x < ip3.getWidth(); x++) {
-            for (int y = 0; y < ip3.getHeight(); y++) {
-                if (imageManager.exclusionMask[x][y]) { // Check if the pixel is part of an excluded region
-                    ip3.putPixelValue(x, y, Double.NaN); // Set excluded pixels to 0 in the original image which turns them black
-                }
-            }
-        }
+        //ip3.putPixelValue(0,0,Double.NaN);
+//        for (int x = 0; x < ip3.getWidth(); x++) {
+//            for (int y = 0; y < ip3.getHeight(); y++) {
+//
+//                if (imageManager.exclusionMask[x][y]) { // Check if the pixel is part of an excluded region
+//                    ip3.putPixelValue(x, y, Double.NaN);
+//                }
+//            }
+//        }
 
         //binarize the smoothed img using Otsu optimal threshold
-        ByteProcessor binary1 = binarizeUsingOtsu(ip3);
+        ByteProcessor binary1 = binarizeUsingOtsu(ip3, imageManager.exclusionMask);
         ImagePlus binaryImg = new ImagePlus("Initial binary attempt",binary1);
         binaryImg.show();
         //imageManager.showScaledUp(binaryImg);
@@ -155,7 +157,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
 
 
-        VoronoiManager vm = new VoronoiManager(originalImgScaled, imageManager);
+        VoronoiManager vm = new VoronoiManager(originalImgScaled, imageManager.exclusionMask);
         vm.setCentroids(centroids);
 
         vm.initDrawVoronoi();
@@ -222,16 +224,22 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         FloatProcessor ip4 = smooth2.getProcessor().duplicate().convertToFloatProcessor();
 
-        for (int x = 0; x < ip4.getWidth(); x++) {
-            for (int y = 0; y < ip4.getHeight(); y++) {
-                if (imageManager.exclusionMask[x][y]) { // Check if the pixel is part of an excluded region
-                    ip4.putPixelValue(x, y, Double.NaN); // Set excluded pixels to 0 in the original image which turns them black
-                }
-            }
-        }
+        //FloatProcessor testCheck = ip4.duplicate().convertToFloatProcessor();
+
+//        for (int x = 0; x < ip4.getWidth(); x++) {
+//            for (int y = 0; y < ip4.getHeight(); y++) {
+//                if (imageManager.exclusionMask[x][y]) { // Check if the pixel is part of an excluded region
+//                    ip4.putPixelValue(x, y, Double.NaN);
+//                    //testCheck.putPixelValue(x,y,green.getRGB());
+//                }
+//            }
+//        }
+
+        //ImagePlus testImage = new ImagePlus("Test exlucded region mask", testCheck);
+        //testImage.show();
 
         //binarize the smoothed img using Otsu optimal threshold
-        ImageProcessor binary2 = binarizeUsingOtsu(ip4);
+        ImageProcessor binary2 = binarizeUsingOtsu(ip4, imageManager.exclusionMask);
         ImagePlus binaryImg2 = new ImagePlus("Final binary attempt", binary2);
         binaryImg2.show();
        // imageManager.showScaledUp(binaryImg2);
@@ -290,7 +298,8 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         ImageProcessor boundryIp = imgAfterGausFiltering.getProcessor();
 
-        double[][][] post_all = gmm.calculatePosterProbabilityMatrixAll(allPixels, boundryIp.getHeight(), boundryIp.getWidth());
+        //this is only used to calculate the contour lines but do we need to do this really?
+        //double[][][] post_all = gmm.calculatePosterProbabilityMatrixAll(allPixels, boundryIp.getHeight(), boundryIp.getWidth());
         double[][] post_fibril = gmm.calculatePosterProbabilityMatrixFibril(fibrilPixels, boundryIp.getHeight(), boundryIp.getWidth());
         //writeArrayToFile(post_all, "p_all.Text");
         //double[][][] post_all = readArrayFromFile2("p_all.Text");
@@ -298,6 +307,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         //drawBoundries(boundryIp, post_all);
 
         IJ.showStatus("Assigning Clusters");
+        IJ.log("Assigning Clusters");
 
 
         int[] clusterAssignments = assignEachFibrilPixelToFibril(fibrilPixels.size(), convertedCentroids.length, post_fibril, isBoundryCentroid);
@@ -314,13 +324,14 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
 
         IJ.showStatus("Preparing Overlayed Images");
+        IJ.log("Preparing Images");
 
         OverlayManager.overlayCentroids(contour, gmm.getMus(), Color.red.getRGB()); // gmm centroids red
         OverlayManager.overlayCentroids(contour, convertedCentroids, Color.magenta.getRGB()); // voronoi centroids magenta
         OverlayManager.overlayVoronoi(contour, vm.voronoi, cyan.getRGB());
-        OverlayManager.overlayContourLines(contour, post_all, Color.blue.getRGB());
+        //OverlayManager.overlayContourLines(contour, post_all, Color.blue.getRGB());
 
-        OverlayManager.overlayContourLines(contour_lines, post_all, Color.blue.getRGB());
+        //OverlayManager.overlayContourLines(contour_lines, post_all, Color.blue.getRGB());
         OverlayManager.overlayCentroids(contour_lines, gmm.getMus(), Color.red.getRGB()); // gmm centroids red
 
 
@@ -332,17 +343,20 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
 
         ImagePlus overlayImage = new ImagePlus("Overlays", contour);
+
         ImagePlus contourLinesImage = new ImagePlus("Contour Lines", contour_lines);
+         //contourLinesImage.show();
         ImagePlus correctedVoronoiImage = new ImagePlus("Corrected Voronoi", intiVoronoi);
-        imageManager.showScaledUp(contourLinesImage);
-        imageManager.showScaledUp(overlayImage);
+        //imageManager.showScaledUp(contourLinesImage);
+        //imageManager.showScaledUp(overlayImage);
         imageManager.showScaledUp(correctedVoronoiImage);
         //imagesToSave.add(overlayImage);
-        imagesToSave.add(contourLinesImage);
+        //imagesToSave.add(contourLinesImage);
         imagesToSave.add(correctedVoronoiImage);
 
 
         IJ.showStatus("Fitting Ellipses");
+        IJ.log("Fitting Ellipses");
         //gmm centroids or user corrected centroids?
         ArrayList<double[]> centroidsFromGmm = convertToArrayList(gmm.getMus());
 
@@ -420,7 +434,11 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         // converting from pixels to nm
         double[] area_nm2 = area_pix2.clone();
         Arrays.setAll(area_nm2, i -> area_pix2[i] * Math.pow(nanometers_over_pixels, 2));
-        ArrayList<double[]> radius_nm = (ArrayList<double[]>) radiusPix.clone();
+        // Deep clone radiusPix to radius_nm
+        ArrayList<double[]> radius_nm = new ArrayList<>();
+        for (double[] arr : radiusPix) {
+            radius_nm.add(arr.clone());  // Clone each array inside radiusPix
+        }
         radius_nm.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * nanometers_over_pixels));
 
 
@@ -462,6 +480,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                     "Covariance XX (pixels^2)", "Covariance XY (pixels^2)", "Covariance YY (pixels^2)",
                     "Component Proportion"));
 
+            //if remove problematic centroids, need to use that size for this loop
             for(int i = 0; i < nonBoundryCentroids.size(); i++){
                 printer.printRecord(formatField(area_pix2[i]),
                         formatField(radiusPix.get(i)[0]),
@@ -592,6 +611,8 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         new ImageJ();
 
         // open the Clown sample
+        //TEM_4.jpg
+        //L3915_3c_BA190R-1.tif
         ImagePlus image = IJ.openImage("/Users/tywatson/development/repos/Rego-Imagej-pluggin/testimages/Adventitia_RIRII.tif");
         //ImagePlus image = IJ.openImage("C:\\Users\\Ty Watson\\Downloads\\testimages\\Adventitia_RIRII.tif");
         image.show();

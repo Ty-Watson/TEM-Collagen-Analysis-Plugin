@@ -12,7 +12,7 @@ import java.util.Arrays;
 import java.util.stream.IntStream;
 
 public class GaussianMixtureModel {
-    private final double regularizationValue = 0.1;
+    private final double regularizationValue = .1;
 
     private final int centroidLength;
     private double[][] centroids;
@@ -73,6 +73,7 @@ public class GaussianMixtureModel {
         else{
             for(int k = 0; k < totalIterations / 2; k++){
                 System.out.println("First iteration step " + k);
+                IJ.log("First iteration step " + k);
                 //progressBar.setStatus("Fitting Gaussian mixture model");
                 IJ.showStatus("Fitting Gaussian Mixture Model");
 
@@ -93,6 +94,7 @@ public class GaussianMixtureModel {
             // Second phase of EM algorithm: Adjust Sigma and ComponentProportion, keeping mu fixed
             for(int k = totalIterations / 2; k < totalIterations + 1; k++) {
                 System.out.println("Second iteration step " + k);
+                IJ.log("Second iteration step " + k);
                 // Reset sums for each iteration
                 double[] sumP = new double[centroidLength];
 
@@ -259,6 +261,13 @@ public class GaussianMixtureModel {
 
 
             }
+
+            //if there are no pixels for this centroid (maybe the user added a centroid in the excluded region) do not process this centroid
+            //because it will inject NAN for cov matrix
+//            if(fibrilPixelsForThisCentroid.isEmpty()){
+//                continue;
+//            }
+
             //  sums for the current centroid
             double xsum = 0;
             double ysum = 0;
@@ -348,7 +357,8 @@ public class GaussianMixtureModel {
     public double[][][] calculatePosterProbabilityMatrixAll(ArrayList<double[]> allPixels, int height, int width){
         long startTime = System.currentTimeMillis();  // Start timing
         //progressBar.setStatus("Calculating posterior probability for all image pixels");
-        IJ.showStatus("Calculating posterior probability for all image pixels");
+        IJ.showStatus("Calculating posterior probabilities for all image pixels...");
+        IJ.log("Calculating posterior probabilities for all image pixels...");
         int numCentroids = mus.length;
         double[][][] posteriors = new double[numCentroids][height][width];
         double[] totalProbabilities = new double[allPixels.size()];
@@ -411,7 +421,8 @@ public class GaussianMixtureModel {
     public double[][] calculatePosterProbabilityMatrixFibril(ArrayList<double[]> allPixels, int height, int width){
         long startTime = System.currentTimeMillis();  // Start timing
         //progressBar.setStatus("Calculating posterior probability for all fibril pixels");
-        IJ.showStatus("Calculating posterior probability for all fibril pixels");
+        IJ.showStatus("Calculating posterior probabilities for all fibril pixels...");
+        IJ.log("Calculating posterior probabilities for all fibril pixels...");
         int numCentroids = mus.length;
         double[][] posteriors = new double[numCentroids][allPixels.size()];
         double[] totalProbabilities = new double[allPixels.size()];

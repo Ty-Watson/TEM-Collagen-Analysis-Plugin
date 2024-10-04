@@ -27,19 +27,20 @@ import static CollagenAnalysis.ImageProcessingUtils.findNearestCentroid;
 
 
 public class VoronoiManager {
-    public VoronoiManager(ImagePlus imp, ImageManager imageManager){
+    public VoronoiManager(ImagePlus imp, boolean[][] exclusionMask){
 
         ip = imp.getProcessor().duplicate();
+        this.exclusionMask = exclusionMask;
+        applyExclusionMask();
         this.imp = new ImagePlus("Voronoi", ip);
         this.imp.show();
-        this.imageManager = imageManager;
+
         setCanvasEvents();
     }
-    private ImageManager imageManager;
     private ImagePlus imp;
     private ImageProcessor ip;
     public Voronoi voronoi;
-
+    public boolean[][] exclusionMask;
     public Voronoi init_voronoi;
 
     private ArrayList<double[]> centroids;
@@ -166,6 +167,7 @@ public class VoronoiManager {
         });
         imp.updateAndDraw();
         overlayMaxima(centroids, Color.red.getRGB());
+        applyExclusionMask();
     }
     public void initDrawVoronoi(){
         ip.snapshot();
@@ -196,6 +198,7 @@ public class VoronoiManager {
 
         imp.updateAndDraw();
         overlayMaxima(centroids, Color.red.getRGB());
+        applyExclusionMask();
     }
     private void overlayMaxima(List<double[]> centroids, int color) {
         // Convert the binarized image to RGB to overlay red points
@@ -283,6 +286,7 @@ public class VoronoiManager {
                             int clickX = canvas.offScreenX(mouseEvent.getX());
                             int clickY = canvas.offScreenY(mouseEvent.getY());
 
+
                             // Find and remove the nearest centroid to the click
                             double[] nearestCentroid = findNearestCentroid(centroids, clickX, clickY);
                             if (nearestCentroid != null) {
@@ -302,6 +306,12 @@ public class VoronoiManager {
                 if (e.getButton() == MouseEvent.BUTTON1) { // Left click add centroid
                     int clickX = canvas.offScreenX(e.getX());
                     int clickY = canvas.offScreenY(e.getY());
+
+                    //cant add centroid in exclusion mask
+                    if(exclusionMask[clickX][clickY]){
+                        return;
+                    }
+
 
                     double[] newCentroid = new double[]{ clickX, clickY};
                     centroids.add(newCentroid);
@@ -548,6 +558,26 @@ public class VoronoiManager {
             System.out.println("Voronoi Vertex " + i + " nearest pixel index: " + nearestPixelIndices[i]);
         }
         return nearestPixelIndices;
+    }
+
+    public  void applyExclusionMask() {
+        int width = ip.getWidth();
+        int height = ip.getHeight();
+
+//        if (exclusionMask.length != height || exclusionMask[0].length != width) {
+//            throw new IllegalArgumentException("Exclusion mask size does not match image dimensions.");
+//        }
+
+        // Iterate over all pixels in the image
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                // Check if the pixel is in the excluded region
+                if (exclusionMask[x][y]) {
+                    // Set the pixel to black (RGB value: 0)
+                    ip.putPixel(x, y, 0);  // Black pixel (for grayscale or RGB images)
+                }
+            }
+        }
     }
 
 }
