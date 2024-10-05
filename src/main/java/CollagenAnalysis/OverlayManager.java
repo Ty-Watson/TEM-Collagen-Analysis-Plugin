@@ -7,8 +7,7 @@ import de.alsclo.voronoi.graph.Point;
 import ij.ImagePlus;
 import ij.gui.Line;
 import ij.gui.Overlay;
-import ij.process.ByteProcessor;
-import ij.process.ImageProcessor;
+import ij.process.*;
 
 import java.awt.*;
 import java.awt.geom.GeneralPath;
@@ -209,6 +208,57 @@ public  class OverlayManager {
             ip.drawLine((int) a.x,  (int)a.y, (int) b.x, (int) b.y);
         });
     }
+
+    public static void overlayExcludedRegions(ImageProcessor ip, boolean[][] exclusionMask){
+        int width = ip.getWidth();
+        int height = ip.getHeight();
+
+//        if (exclusionMask.length != height || exclusionMask[0].length != width) {
+//            throw new IllegalArgumentException("Exclusion mask size does not match image dimensions.");
+//        }
+
+        // Iterate over all pixels in the image
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                // Check if the pixel is in the excluded region
+                if (exclusionMask[x][y]) {
+                    // Set the pixel to black (RGB value: 0)
+                    ip.putPixel(x, y, 0);  // Black pixel (for grayscale or RGB images)
+                }
+            }
+        }
+    }
+
+    public static void overlayRedBinarization(ColorProcessor ip, ImageProcessor bp){
+        for(int y = 0; y < ip.getHeight(); y++){
+            for(int x = 0; x < ip.getWidth(); x++){
+                double bpBValue = bp.getPixelValue(x,y);
+                if(bpBValue == 0){ //fibril pixel
+
+                    int[] rgbArray2 = new int[3];
+                    ip.getPixel(x, y, rgbArray2);
+                    int red2 = rgbArray2[0];
+                    int green2 = rgbArray2[1];
+                    int blue2 = rgbArray2[2];
+
+                    int rgb = ip.getPixel(x, y);
+                        // Extract the Red, Green, and Blue components using bitwise shifts and masks
+                    int red = (rgb >> 16) & 0xFF;
+                    int green = (rgb >> 8) & 0xFF;
+                    int blue = rgb & 0xFF;
+
+                    red = (red + 255) / 2;
+//                    green = 0;
+//                    blue = 0;
+                    int[] rgbArray = new int[] {red, green, blue};
+                    ip.putPixel(x, y, rgbArray);
+
+                }
+            }
+        }
+
+    }
+
     public static void overlayCentroids(ImageProcessor ip, double[][] centroids, int color){
 
 

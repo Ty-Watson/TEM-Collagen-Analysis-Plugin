@@ -25,7 +25,7 @@ public class EllipseFitting {
     private ArrayList<double[]> xEllipses = new ArrayList<>();
     private ArrayList<double[]> yEllipses = new ArrayList<>();
 
-    private ArrayList<Polygon> ellipses = new ArrayList<>();
+    public ArrayList<Polygon> ellipses = new ArrayList<>();
 
     private ArrayList<double[]> radius_pix = new ArrayList<>();
 
@@ -225,6 +225,7 @@ public class EllipseFitting {
                 radius_pix.remove(i);
                 angle_of_major_axis.remove(i);
                 ellipses.remove(i);
+                System.out.println("# of ellipses: " + ellipses.size());
                 return i;
             }
         }

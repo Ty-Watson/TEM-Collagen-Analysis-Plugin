@@ -2,19 +2,19 @@ package CollagenAnalysis;
 
 import ij.IJ;
 import ij.ImagePlus;
-import ij.gui.GenericDialog;
-import ij.gui.Line;
-import ij.gui.Roi;
-import ij.gui.WaitForUserDialog;
+import ij.gui.*;
 import ij.measure.Measurements;
 import ij.plugin.frame.RoiManager;
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
+import ij.text.TextWindow;
 import org.scijava.tool.Tool;
 
 import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 
 import static CollagenAnalysis.ImageProcessingUtils.calculateDistance;
 
@@ -26,6 +26,7 @@ public class ImageManager {
     private double  conversionFactor;
 
     public boolean[][] exclusionMask;
+    private boolean exitLoop = false;
 
     public ImageManager(ImagePlus imp){
         this.ip = imp.getProcessor();
@@ -102,6 +103,7 @@ public class ImageManager {
 
     }
     public ImageProcessor excludeRegions(){
+        //GlobalKeyListener.addGlobalKeyListener();
         if (!(ip instanceof ByteProcessor)) {
             ip = ip.convertToByteProcessor();
         }
@@ -113,50 +115,41 @@ public class ImageManager {
         ipExt.fill();
         ipExt.insert(ip, borderSize, borderSize);
 
-        // Display extended image
+        // Display extended image and set up key events
         ImagePlus impExt = new ImagePlus("Extended Image", ipExt);
+        RoiManager roiManager = new RoiManager();
         impExt.show();
+        ImageCanvas canvas = impExt.getCanvas();
+        canvas.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_A) {
+                    addPolygonToRoiManager(impExt, roiManager);
+                } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    exitLoop = true;
+                    IJ.log("Exiting exclusion loop...");
+                }
+            }
+        });
 
-        // Instructions for the user
-//        GenericDialog gd = new GenericDialog("Interactive Image Editing");
-//        gd.addMessage("Draw polygons to exclude regions.\nDouble-click to finish.");
-//        gd.showDialog();
-//        if (gd.wasCanceled()) {
-//            return null;
-//        }
-
+        String s = "Draw a polygon then press the 'a' key to exclude the region from processing. Press 'Escape' key to finish and exit";
+        //IJ.log("Draw a polygon then press the 'a' key to exclude the region from processing. Press 'Escape' key to finish and exit");
+        TextWindow textWindow = new TextWindow("Action Required", s, 800, 100);
         // User interaction for drawing polygons and excluding regions
         IJ.setTool("polygon");
-        boolean isEmptyPolygon = false;
-        RoiManager roiManager = new RoiManager();
+        // Loop until Escape is pressed ot exit out of excluding regions
+        while (!exitLoop) {
+            IJ.setTool("polygon");
+            IJ.wait(1000); // Small delay to prevent the loop from consuming too much CPU
 
-
-        while (!isEmptyPolygon) {
-
-            WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Draw a polygon to exclude any regions then press ok. Press escape once you are finished.");
-            wfud.show();
-
-            if (wfud.escPressed()) break; // Exit on escape
-
-            Roi roi = impExt.getRoi();
-            roi.getPolygon();
-            if (roi != null && roi.getType() == Roi.POLYGON) {
-                roiManager.addRoi(roi);
-                ImageStatistics stats = impExt.getStatistics(Measurements.AREA);
-                if (stats.area <= 0) {
-                    isEmptyPolygon = true;
-                } else {
-                    ipExt.setColor(255);
-                    ipExt.fill(roi);
-                    impExt.updateAndDraw();
-                }
-                impExt.killRoi(); // Remove the drawn polygon
-            }
+//            Roi roi = impExt.getRoi();
+//            if (roi != null) {
+//                // User has drawn a polygon, wait for input (handled by key events)
+//                IJ.log("Polygon drawn, press 'A' to add or 'Escape' to finish.");
+//            }
         }
-//        ImageProcessor ipCropped = ipExt.duplicate(); // Duplicate to preserve the extended image
-//        ipCropped.setRoi(borderSize, borderSize, ip.getWidth(), ip.getHeight());
-//        ImageProcessor croppedImg = ipCropped.crop();
 
+        //generate a mask where coord = true if its in an excluded region
         exclusionMask = new boolean[ip.getWidth()][ip.getHeight()];
         // Get ROIs and create the exclusion mask
         Roi[] rois = roiManager.getRoisAsArray();
@@ -167,25 +160,33 @@ public class ImageManager {
                 for (int x = 0; x < ip.getWidth(); x++) {
                     if (roi.contains(x,y)) {
                         exclusionMask[x][y] = true;
-//                        ipCropped.putPixelValue(x, y, 255);
                     }
                 }
             }
         }
 
-//        for (int x = 0; x < croppedImg.getWidth(); x++) {
-//            for (int y = 0; y < croppedImg.getHeight(); y++) {
-//                if (croppedImg.getPixel(x, y) == 255) { // Check if the pixel is part of an excluded region
-//                    processorWithExcludedRegions.putPixelValue(x, y, Double.NaN); //set to black in original image
-//                }
-//            }
-//        }
         //Finalize editing
         impExt.changes = false;
         impExt.close();
         IJ.setTool("hand");
 
         return processorWithExcludedRegions;
+    }
+
+    // Add the polygon to the RoiManager when 'A' is pressed
+    private void addPolygonToRoiManager(ImagePlus imp, RoiManager roiManager) {
+        Roi roi = imp.getRoi();
+        ImageProcessor ip = imp.getProcessor();
+        if (roi != null && roi.getType() == Roi.POLYGON) {
+            roiManager.addRoi(roi);
+            IJ.log("Region excluded");
+            ip.setColor(255);
+            ip.fill(roi);
+            imp.updateAndDraw();
+            imp.killRoi(); // Remove the drawn polygon after adding it
+        } else {
+            IJ.log("No valid polygon to add.");
+        }
     }
     public void drawExcludedRegions(ImageProcessor ip){
         for (int y = 0; y < ip.getHeight(); y++) {

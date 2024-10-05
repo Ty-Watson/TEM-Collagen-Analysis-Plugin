@@ -72,8 +72,8 @@ public class GaussianMixtureModel {
         }
         else{
             for(int k = 0; k < totalIterations / 2; k++){
-                System.out.println("First iteration step " + k);
-                IJ.log("First iteration step " + k);
+                System.out.printf("Step %d out of %d \n", k, totalIterations);
+                IJ.log("step " + k + " out of " + totalIterations);
                 //progressBar.setStatus("Fitting Gaussian mixture model");
                 IJ.showStatus("Fitting Gaussian Mixture Model");
 
@@ -93,10 +93,10 @@ public class GaussianMixtureModel {
 
             // Second phase of EM algorithm: Adjust Sigma and ComponentProportion, keeping mu fixed
             for(int k = totalIterations / 2; k < totalIterations + 1; k++) {
-                System.out.println("Second iteration step " + k);
-                IJ.log("Second iteration step " + k);
+                System.out.printf("Step %d out of %d \n", k, totalIterations);
+                IJ.log("step " + k + " out of " + totalIterations);
                 // Reset sums for each iteration
-                double[] sumP = new double[centroidLength];
+                //double[] sumP = new double[centroidLength];
 
                 // E-step: Recalculate responsibilities
                 calculatePosteriorProbabilityMatrix();
@@ -384,7 +384,7 @@ public class GaussianMixtureModel {
                 int y = j / width;
                 int x = j % width;
 
-                //not sure what synchronized does remove this
+
                 synchronized (posteriors) {
                     posteriors[i][y][x] = componentProportions[i] * pdf_values[i][j];
                     totalProbabilities[j] += componentProportions[i] * pdf_values[i][j];
