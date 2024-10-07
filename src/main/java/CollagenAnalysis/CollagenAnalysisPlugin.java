@@ -271,7 +271,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         //TODO: figure this out, test both. right now using vm centroids
         ArrayList<double[]> centroidsFromGmm = convertToArrayList(gmm.getMus());
 
-        EllipseFitting ef = new EllipseFitting(originalImgScaled, fibrilPixels, vm.getCentroids() , clusterAssignments, post_fibril, nonBoundryCentroids);
+        EllipseFitting ef = new EllipseFitting(originalImgScaled, fibrilPixels, vm.getCentroids() , clusterAssignments, post_fibril, gmm.getComponentProportions() ,  nonBoundryCentroids);
         ef.fitEllipses(isBoundryCentroid);
 
         //user can delete ellipses that did not perform well
@@ -285,53 +285,29 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         //conversion from pixels to nm
         double nanometers_over_pixels = imageManager.getConversionFactor();
-        //Number times original image got scaled down by two
+        //Number times original image got scaled down by half
         int scale = imageManager.getScale();
-        int ellipseCount = ef.ellipses.size();
-        int nonboundryCount = nonBoundryCentroids.size();
 
         //Ellipse data
-        ArrayList<double[]> radiusPix = ef.getRadius_pix();
-        ArrayList<Double> major_axis_angle = ef.getAngle_of_major_axis();
-        ArrayList<double[]> x_ellipse = ef.getxEllipses();
-        ArrayList<double[]> y_ellipse = ef.getyEllipses();
-        ArrayList<Double> aspectRatios = ef.getAspectRatios();
-
-        //GMM data
-        double[][] mus = gmm.getMus();
-        double[][][] covariances = gmm.getCovariance();
-        double[] componentProportions = gmm.getComponentProportions();
+        ArrayList<Ellipse> ellipses = ef.fibrilEllipses;
 
         //ellipse scaling
-        radiusPix.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
-        major_axis_angle.replaceAll(angle -> angle * scale);
-        x_ellipse.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
-        y_ellipse.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
-        aspectRatios.replaceAll(ratio -> ratio * scale);
+        for(Ellipse e : ellipses){
+            e.scale(scale);
+        }
 
         //gmm scaling
-        Arrays.stream(mus).forEach(arr -> Arrays.setAll(arr, i -> arr[i] * scale));
-        covariances = Arrays.stream(covariances)
-                .map(matrix -> Arrays.stream(matrix)
-                        .map(row -> Arrays.stream(row)
-                                .map(value -> value * scale)
-                                .toArray())
-                        .toArray(double[][]::new))
-                .toArray(double[][][]::new);
-        Arrays.setAll(componentProportions, i -> componentProportions[i] * scale);
+        //double[] area_pix2 = computeFibrilArea(post_fibril, scale, nonBoundryCentroids.size());
 
-        double[] area_pix2 = computeFibrilArea(post_fibril, scale, mus.length);
-        Arrays.setAll(area_pix2, i -> area_pix2[i] * scale);
+        ArrayList<Double> areaFromEllipse_pix2 = ef.area_pix;
+        for(int i = 0; i < areaFromEllipse_pix2.size(); i++){
+            areaFromEllipse_pix2.set(i, areaFromEllipse_pix2.get(i) * Math.pow(scale, 2));
+        }
 
         // converting from pixels to nm
-        double[] area_nm2 = area_pix2.clone();
-        Arrays.setAll(area_nm2, i -> area_pix2[i] * Math.pow(nanometers_over_pixels, 2));
-        // Deep clone radiusPix to radius_nm
-        ArrayList<double[]> radius_nm = new ArrayList<>();
-        for (double[] arr : radiusPix) {
-            radius_nm.add(arr.clone());  // Clone each array inside radiusPix
+        for(Ellipse e : ellipses){
+            e.convertToNM(nanometers_over_pixels);
         }
-        radius_nm.forEach(arr -> Arrays.setAll(arr, i -> arr[i] * nanometers_over_pixels));
 
         //get image name without file extension
         int dotIndex = imageName.lastIndexOf('.');
@@ -364,17 +340,17 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                     "Component Proportion"));
 
             //TODO: if remove problematic centroids, need to use that size for this loop. Need to use ellipse size
-            for(int i = 0; i < nonBoundryCentroids.size(); i++){
-                printer.printRecord(formatField(area_pix2[i]),
-                        formatField(radiusPix.get(i)[0]),
-                        formatField(radiusPix.get(i)[1]),
-                        formatField(major_axis_angle.get(i)),
-                        formatField(convertedCentroids[i][0]),
-                        formatField(convertedCentroids[i][1]),
-                        formatField(covariances[i][0][0]),
-                        formatField(covariances[i][0][1]),
-                        formatField(covariances[i][1][1]),
-                        formatField(componentProportions[i]));
+            for(Ellipse e : ellipses){
+                printer.printRecord(formatField(e.area),
+                        formatField(e.majorRadius),
+                        formatField(e.minorRadius),
+                        formatField(e.angle),
+                        formatField(e.x),
+                        formatField(e.y),
+                        formatField(e.cov[0][0]),
+                        formatField(e.cov[0][1]),
+                        formatField(e.cov[1][1]),
+                        formatField(e.componentProportion));
             }
             out.close();
 
@@ -393,11 +369,11 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                     "Aspect Ratio"));
 
             //TODO: need to use final ellipse size
-            for(int i = 0; i < nonBoundryCentroids.size(); i++){
-                printer.printRecord(formatField(area_nm2[i]),
-                        formatField(radius_nm.get(i)[0]),
-                        formatField(radius_nm.get(i)[1]),
-                        formatField(aspectRatios.get(i)));
+            for(Ellipse e : ellipses){
+                printer.printRecord(formatField(e.area_nm),
+                        formatField(e.majorRadius_nm),
+                        formatField(e.minorRadius_nm),
+                        formatField(e.aspectRatio_nm));
             }
             out2.close();
 

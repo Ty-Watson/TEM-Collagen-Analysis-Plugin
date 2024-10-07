@@ -123,23 +123,24 @@ public class ImageManager {
         canvas.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
+                //GlobalKeyListener.addGlobalKeyListener();
                 if (e.getKeyCode() == KeyEvent.VK_A) {
                     addPolygonToRoiManager(impExt, roiManager);
                 } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
                     exitLoop = true;
-                    IJ.log("Exiting exclusion loop...");
+                    IJ.log("Excluding regions complete...");
                 }
             }
         });
 
-        String s = "Draw a polygon then press the 'a' key to exclude the region from processing. Press 'Escape' key to finish and exit";
+        String s = "Click in image. Draw a polygon then press the 'a' key to exclude the region from processing. Press 'Escape' key to finish and exit";
         //IJ.log("Draw a polygon then press the 'a' key to exclude the region from processing. Press 'Escape' key to finish and exit");
         TextWindow textWindow = new TextWindow("Action Required", s, 800, 100);
         // User interaction for drawing polygons and excluding regions
         IJ.setTool("polygon");
         // Loop until Escape is pressed ot exit out of excluding regions
         while (!exitLoop) {
-            IJ.setTool("polygon");
+            //IJ.setTool("polygon");
             IJ.wait(1000); // Small delay to prevent the loop from consuming too much CPU
 
 //            Roi roi = impExt.getRoi();
