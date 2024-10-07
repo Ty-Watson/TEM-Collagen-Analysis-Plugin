@@ -1,84 +1,82 @@
-This is an example Maven project implementing an ImageJ 1.x plugin.
 
-For an example Maven project implementing an **ImageJ2 command**, see:
-    https://github.com/imagej/example-imagej2-command
+TEM-Collagen-Analysis-Plugin
 
-It is intended as an ideal starting point to develop new ImageJ 1.x plugins
-in an IDE of your choice. You can even collaborate with developers using a
-different IDE than you.
+This is a custom plugin developed for ImageJ version 1. The plugin allows users to analyze clusters of collagen fibrils. This guide will help you clone the repository, build the plugin, and install it into your local ImageJ installation.
 
-* In [Eclipse](http://eclipse.org), for example, it is as simple as
-  _File &#8250; Import... &#8250; Existing Maven Project_.
+Prerequisites
+Before proceeding, make sure you have the following installed:
 
-* In [NetBeans](http://netbeans.org), it is even simpler:
-  _File &#8250; Open Project_.
+ImageJ version 1 - Download and install from ImageJ website.
+Java Development Kit (JDK) - Version 8 or higher.
+Maven - A Java build tool, you can install it from Maven's official site.
+Instructions to Clone, Build, and Install
+1. Clone the Repository
+First, clone the plugin repository to your local machine. Open your terminal (or command prompt) and run:
 
-* The same works in [IntelliJ](http://jetbrains.net).
+https://github.com/Ty-Watson/TEM-Collagen-Analysis-Plugin.git
+This will download all the files from the repository into a local directory.
 
-* If [jEdit](http://jedit.org) is your preferred IDE, you will need the
-  [Maven Plugin](http://plugins.jedit.org/plugins/?MavenPlugin).
+2. Navigate to the Plugin Directory
+Change to the directory where the plugin's source code is located:
 
-Die-hard command-line developers can use Maven directly by calling `mvn`
-in the project root.
+cd your-plugin-repo
 
-However you build the project, in the end you will have the `.jar` file
-(called *artifact* in Maven speak) in the `target/` subdirectory.
+3. Build the JAR File
+Use Maven to build the plugin into a JAR file. This will compile the Java files and package them into a plugin JAR file:
 
-To copy the artifact into the correct place, you can call
-`mvn -Dscijava.app.directory=/path/to/ImageJ.app/`.
-This will not only copy your artifact, but also all the dependencies. Restart
-your ImageJ or call *Help &#8250; Refresh Menus* to see your plugin in the menus.
+mvn clean package
 
-Developing plugins in an IDE is convenient, especially for debugging. To
-that end, the plugin contains a `main` method which sets the `plugins.dir`
-system property (so that the plugin is added to the Plugins menu), starts
-ImageJ, loads an image and runs the plugin. See also
-[this page](https://imagej.net/Debugging#Debugging_plugins_in_an_IDE_.28Netbeans.2C_IntelliJ.2C_Eclipse.2C_etc.29)
-for information how ImageJ makes it easier to debug in IDEs.
+If everything is set up correctly, this command will create a .jar file in the target directory.
 
-Since this project is intended as a starting point for your own
-developments, it is in the public domain.
+4. Install the Plugin
+Option 1: Manual Installation
+Once the JAR file is created, you need to copy it into ImageJ’s plugins folder:
 
-How to use this project as a starting point
-===========================================
+Locate your ImageJ installation directory.
+Navigate to the plugins folder inside your ImageJ directory.
+On Windows, this could be something like C:\Program Files\ImageJ\plugins.
+On macOS/Linux, it could be /Applications/ImageJ/plugins or ~/ImageJ/plugins.
+Copy the JAR file (your-plugin-repo.jar) from the target folder into the plugins folder.
+Option 2: Use Maven for Installation
+Die-hard command-line developers can use Maven directly by calling mvn in the project root.
 
-1. Visit [this link](https://github.com/imagej/example-legacy-plugin/generate)
-   to create a new repository in your space using this one as a template.
+However you build the project, in the end, you will have the .jar file (called an artifact in Maven speak) in the target/ subdirectory.
 
-2. [Clone your new repository](https://help.github.com/en/articles/cloning-a-repository).
+To copy the artifact into the correct place, you can call:
 
-3. Edit the `pom.xml` file. Every entry should be pretty self-explanatory.
-   In particular, change
-    1. the *artifactId* (**NOTE**: should contain a '_' character)
-    2. the *groupId*, ideally to a reverse domain name your organization owns
-    3. the *version* (note that you typically want to use a version number
-       ending in *-SNAPSHOT* to mark it as a work in progress rather than a
-       final version)
-    4. the *dependencies* (read how to specify the correct
-       *groupId/artifactId/version* triplet
-       [here](https://imagej.net/Maven#How_to_find_a_dependency.27s_groupId.2FartifactId.2Fversion_.28GAV.29.3F))
-    5. the *developer* information
-    6. the *scm* information
 
-4. Remove the `Process_Pixels.java` file and add your own `.java` files
-   to `src/main/java/<package>/` (if you need supporting files -- like icons
-   -- in the resulting `.jar` file, put them into `src/main/resources/`)
+mvn -Dscijava.app.directory=/path/to/ImageJ.app/
 
-5. Edit `src/main/resources/plugins.config`
+This will not only copy your artifact but also all the dependencies. Restart your ImageJ or call Help › Refresh Menus to see your plugin in the menus.
 
-6. Replace the contents of `README.md` with information about your project.
+5. Run ImageJ and Use the Plugin
+Open ImageJ.
+You should see your plugin listed under the Plugins menu in ImageJ.
+You can now use the plugin by selecting it from the Plugins menu!
 
-7. Make your initial
-   [commit](https://help.github.com/en/desktop/contributing-to-projects/committing-and-reviewing-changes-to-your-project) and
-   [push the results](https://help.github.com/en/articles/pushing-commits-to-a-remote-repository)!
+6. Updating the Plugin
+To update the plugin, pull the latest changes from the repository and rebuild the JAR file:
 
-### Eclipse: To ensure that Maven copies the plugin to your ImageJ folder
+git pull
+mvn clean package
 
-1. Go to _Run Configurations..._
-2. Choose _Maven Build_
-3. Add the following parameter:
-    - name: `scijava.app.directory`
-    - value: `/path/to/ImageJ.app/`
+Then, copy the new JAR file to your ImageJ plugins directory using either the manual method or the Maven method and restart ImageJ.
 
-This ensures that the final `.jar` file will also be copied to
-your ImageJ plugins folder everytime you run the Maven build.
+Troubleshooting
+Build Errors: Ensure you have the correct version of Java and Maven installed, and that your environment variables (JAVA_HOME and MAVEN_HOME) are properly set.
+Plugin Not Showing: Ensure the JAR file is placed in the correct plugins folder or installed via Maven and restart ImageJ.
+If you encounter any issues, feel free to open an issue on the GitHub repository.
+
+License
+This project is licensed under the MIT License. See the LICENSE file for details.
+
+Author
+[Your Name] - Developer of the plugin.
+
+This addition will guide users on how to use Maven to directly copy the plugin and its dependencies into the ImageJ directory, as requested.
+
+
+
+
+
+
