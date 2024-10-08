@@ -133,9 +133,16 @@ public class ImageManager {
             }
         });
 
-        String s = "Click in image. Draw a polygon then press the 'a' key to exclude the region from processing. Press 'Escape' key to finish and exit";
-        //IJ.log("Draw a polygon then press the 'a' key to exclude the region from processing. Press 'Escape' key to finish and exit");
-        TextWindow textWindow = new TextWindow("Action Required", s, 800, 100);
+        //String s = "Click in image. Draw a polygon then press the 'a' key to exclude the region from processing. Press 'Escape' key to finish and exit";
+        IJ.log("Click in image. Draw a polygon then press the 'a' key to exclude the region from processing. Press 'Escape' key to finish and exit");
+        //TextWindow textWindow = new TextWindow("Action Required", s, 800, 100);
+        GenericDialog gd = new GenericDialog("Action Required");
+        String instructions = "Step 1: Click in the Extended Image.\n" +
+                "Step 2: Draw a polygon then press the 'a' key to exclude the region from processing.\n" +
+                "Step 3: Press 'Escape' key to finish and exit";
+        gd.setInsets(10, 10, 10); // Add some spacing around the text
+        gd.addMessage(instructions);
+        gd.showDialog(); // Display the dialog
         // User interaction for drawing polygons and excluding regions
         IJ.setTool("polygon");
         // Loop until Escape is pressed ot exit out of excluding regions

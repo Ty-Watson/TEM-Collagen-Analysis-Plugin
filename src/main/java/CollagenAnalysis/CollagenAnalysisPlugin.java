@@ -168,9 +168,10 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         ImageProcessor binaryOverlay = originalImgScaled.getProcessor().duplicate().convertToColorProcessor();
         OverlayManager.overlayBinaryAttempts(binaryOverlay, binary1, binary2);
         ImagePlus binaryOverlayImg = new ImagePlus("Binarization Overlay", binaryOverlay);
-        String binaryOverlayDescription = "Green: non-fibrillar to fibrillar; magenta: fibrillar to non-fibrillar; black/ white: unchanged.";
+        String binaryOverlayDescription = "Binarization Overlay Description: Green: non-fibrillar to fibrillar; magenta: fibrillar to non-fibrillar; black/ white: unchanged.";
         // Show the description in a TextWindow
-        TextWindow textWindow1 = new TextWindow("Binarization Overlay Description", binaryOverlayDescription, 800, 100);
+        //TextWindow textWindow1 = new TextWindow("Binarization Overlay Description", binaryOverlayDescription, 800, 100);
+        IJ.log(binaryOverlayDescription);
         imageManager.showScaledUp(binaryOverlayImg);
         imagesToSave.add(binaryOverlayImg);
 
