@@ -15,7 +15,7 @@
 
 
 	<groupId>edu.lsu.be</groupId>
-	<artifactId>tem-collagen-analysis-plugin</artifactId>
+	<artifactId>_tem-collagen-analysis-plugin</artifactId>
 	<version>0.1.0-SNAPSHOT</version>
 
 	<name>TEM-Collagen-Analysis-Plugin</name>                                               <!-- FIXME: Your project name here          -->
@@ -283,7 +283,7 @@
 								<resource>
 									<directory>${project.build.directory}</directory>
 									<includes>
-										<include>${project.build.finalName}.jar</include>
+										<include>_${project.build.finalName}.jar</include>
 									</includes>
 								</resource>
 							</resources>
