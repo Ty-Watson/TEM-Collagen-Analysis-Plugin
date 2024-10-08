@@ -37,7 +37,7 @@ public class ImageProcessingUtils {
             for(int j = 0; j < postFibril[i].length; j++) {
                 areaPix2[i] += postFibril[i][j];
             }
-            areaPix2[i] *= Math.pow(scale, 2);
+            //areaPix2[i] *= Math.pow(scale, 2);
         }
         return areaPix2;
     }

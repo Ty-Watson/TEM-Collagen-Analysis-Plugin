@@ -81,6 +81,7 @@ public class EllipseFitting {
 
         util.calculateMuAndCovarianceForEachFibril(fibrilPixels, centroids, cluster_idx);
         util.validateCovariance(test);
+        double[] areaForEachFibril = computeFibrilArea(post_fibril, 2, centroids.size());
 
         ArrayList<double[][]> covarianceForEachFibril = util.covarianceForEachFibril;
         //ArrayList<RealMatrix> covariance = util.covariance;
@@ -117,6 +118,7 @@ public class EllipseFitting {
                 // Calculate the area of the ellipse
                 double area = Math.PI * majorRadius * minorRadius;
                 e.area = area;
+                e.postProbArea = areaForEachFibril[i];
                 e.majorRadius = majorRadius;
                 e.minorRadius = minorRadius;
                 e.aspectRatio = majorRadius / minorRadius;

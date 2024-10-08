@@ -359,7 +359,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
             //TODO: if remove problematic centroids, need to use that size for this loop. Need to use ellipse size
             for(Ellipse e : ellipses){
-                printer.printRecord(formatField(e.area),
+                printer.printRecord(formatField(e.postProbArea),
                         formatField(e.majorRadius),
                         formatField(e.minorRadius),
                         formatField(e.angle),

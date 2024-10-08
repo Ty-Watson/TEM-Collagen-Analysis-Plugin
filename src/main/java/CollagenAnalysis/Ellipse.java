@@ -14,6 +14,7 @@ public class Ellipse {
     public double aspectRatio;
     public double aspectRatio_nm;
     public double area;
+    public double postProbArea;
     public double area_nm;
     public double angle;
     public double majorRadius;
@@ -61,6 +62,7 @@ public class Ellipse {
 
         // Area scales by the square of the scale factor
         area *= Math.pow(scale, 2);
+        postProbArea *= Math.pow(scale,2);
 
 
         // Scale the ellipse points
@@ -81,7 +83,9 @@ public class Ellipse {
         //generateEllipsePolygon();
     }
     public void convertToNM(double nanometers_over_pixels){
-        area_nm = area * Math.pow(nanometers_over_pixels, 2);
+        //this is using major and minor radius to calculate area
+        //area_nm = area * Math.pow(nanometers_over_pixels, 2);
+        area_nm = postProbArea * Math.pow(nanometers_over_pixels, 2);
         majorRadius_nm = majorRadius * nanometers_over_pixels;
         minorRadius_nm = minorRadius * nanometers_over_pixels;
         aspectRatio_nm = aspectRatio * nanometers_over_pixels;
