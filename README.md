@@ -45,6 +45,7 @@ mvn clean package
 <p>3. Exit and reopen ImageJ and open the Plugins menu to verify the plugin "Collagen Analysis" is there</p>
 
 <h2>Maven copy</h2>
+
 ```
 mvn -Dscijava.app.directory=/path/to/ImageJ.app/
 ```
