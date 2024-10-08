@@ -24,6 +24,7 @@ import org.apache.commons.csv.CSVPrinter;
 import smile.neighbor.KDTree;
 import smile.neighbor.Neighbor;
 
+import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
@@ -169,7 +170,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         ImagePlus binaryOverlayImg = new ImagePlus("Binarization Overlay", binaryOverlay);
         String binaryOverlayDescription = "Green: non-fibrillar to fibrillar; magenta: fibrillar to non-fibrillar; black/ white: unchanged.";
         // Show the description in a TextWindow
-        TextWindow textWindow = new TextWindow("Binarization Overlay Description", binaryOverlayDescription, 800, 100);
+        TextWindow textWindow1 = new TextWindow("Binarization Overlay Description", binaryOverlayDescription, 800, 100);
         imageManager.showScaledUp(binaryOverlayImg);
         imagesToSave.add(binaryOverlayImg);
 
@@ -315,7 +316,23 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
             imageName = imageName.substring(0, dotIndex);
         }
         // Get the path of the image currently open in ImageJ
-        String path = IJ.getDirectory("Choose a directory to create");
+        //String path = IJ.getDirectory("Choose a directory to create");
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Choose a directory to create");
+        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+
+        int returnValue = chooser.showOpenDialog(null);
+
+        String path;
+        if (returnValue == JFileChooser.APPROVE_OPTION) {
+            File selectedDirectory = chooser.getSelectedFile();
+            System.out.println("Selected directory: " + selectedDirectory.getAbsolutePath());
+            path = selectedDirectory.getAbsolutePath() + File.separator;
+        } else {
+            System.out.println("No directory selected.");
+            path = null;
+        }
+
         Path newFolderPath;
 
         if (path != null) {
