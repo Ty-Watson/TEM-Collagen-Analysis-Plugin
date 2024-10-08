@@ -44,6 +44,7 @@ mvn clean package
 <p>2. Drag and drop or copy the JAR file into the plugins folder in your ImageJ installation</p>
 <p>3. Exit and reopen ImageJ and open the Plugins menu to verify the plugin "Collagen Analysis" is there</p>
 
+<h2>Maven copy</h2>
 ```
 mvn -Dscijava.app.directory=/path/to/ImageJ.app/
 ```
