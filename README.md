@@ -1,80 +1,69 @@
 
-TEM-Collagen-Analysis-Plugin
+<h1 align="center" id="title">Collagen Fibril Analysis Plugin for ImageJ</h1>
 
-This is a custom plugin developed for ImageJ version 1. The plugin allows users to analyze clusters of collagen fibrils. This guide will help you clone the repository, build the plugin, and install it into your local ImageJ installation.
+<p align="center"><img src="https://socialify.git.ci/Ty-Watson/TEM-Collagen-Analysis-Plugin/image?font=Inter&amp;language=1&amp;name=1&amp;owner=1&amp;pattern=Signal&amp;stargazers=1&amp;theme=Light" alt="project-image"></p>
 
-Prerequisites
-Before proceeding, make sure you have the following installed:
+<p id="description">This ImageJ plugin is designed for the quantitative assessment of collagen fibril architecture from transmission electron microscopy (TEM) images inspired by the methodology described in the paper "A Fast Robust Method for Quantitative Assessment of Collagen Fibril Architecture from Transmission Electron Micrographs" by Bruno V. Rego Dar Weiss and Jay D. Humphrey.</p>
 
-ImageJ version 1 - Download and install from ImageJ website.
-Java Development Kit (JDK) - Version 8 or higher.
-Maven - A Java build tool, you can install it from Maven's official site.
-Instructions to Clone, Build, and Install
-1. Clone the Repository
-First, clone the plugin repository to your local machine. Open your terminal (or command prompt) and run:
+  
+  
+<h2>🧐 Features</h2>
 
-https://github.com/Ty-Watson/TEM-Collagen-Analysis-Plugin.git
-This will download all the files from the repository into a local directory.
+Here're some of the project's best features:
 
-2. Navigate to the Plugin Directory
-Change to the directory where the plugin's source code is located:
+*   Fibril Segmentation:
+*   Quantitative Metrics
+*   Interactive
 
-cd your-plugin-repo
+<h2>🛠️ Installation Steps:</h2>
 
-3. Build the JAR File
-Use Maven to build the plugin into a JAR file. This will compile the Java files and package them into a plugin JAR file:
+<p>1. Prereqs: Download and install ImageJ. Java Development Kit (JDK) - Version 8 or higher. Maven - A Java build tool you can install it from Maven's official site.</p>
 
+<p>2. Clone the Repository First clone the plugin repository to your local machine. Open your terminal (or command prompt) and navigate to your desired directory and run:</p>
+
+```
+git clone https://github.com/Ty-Watson/TEM-Collagen-Analysis-Plugin.git
+```
+
+<p>3. Change to the directory where the plugin's source code is located:</p>
+
+```
+cd TEM-Collagen-Analysis-Plugin
+```
+
+<p>4. Use Maven to build the plugin into a JAR file. This will compile the Java files and package them into a plugin JAR file:</p>
+
+```
 mvn clean package
+```
 
-If everything is set up correctly, this command will create a .jar file in the target directory.
+<p>5. Next you will copy the jar file to your ImageJ installation</p>
 
-4. Install the Plugin
-Option 1: Manual Installation
-Once the JAR file is created, you need to copy it into ImageJ’s plugins folder:
-
-Locate your ImageJ installation directory.
-Navigate to the plugins folder inside your ImageJ directory.
-On Windows, this could be something like C:\Program Files\ImageJ\plugins.
-On macOS/Linux, it could be /Applications/ImageJ/plugins or ~/ImageJ/plugins.
-Copy the JAR file (your-plugin-repo.jar) from the target folder into the plugins folder.
-Option 2: Use Maven for Installation
-Die-hard command-line developers can use Maven directly by calling mvn in the project root.
-
-However you build the project, in the end, you will have the .jar file (called an artifact in Maven speak) in the target/ subdirectory.
-
-To copy the artifact into the correct place, you can call:
-
-
+```
 mvn -Dscijava.app.directory=/path/to/ImageJ.app/
+```
 
-This will not only copy your artifact but also all the dependencies. Restart your ImageJ or call Help › Refresh Menus to see your plugin in the menus.
+<p>6. Run ImageJ and you should see the plugin "Collagen Analysis" under the Plugins Menu in ImageJ</p>
 
-5. Run ImageJ and Use the Plugin
-Open ImageJ.
-You should see your plugin listed under the Plugins menu in ImageJ.
-You can now use the plugin by selecting it from the Plugins menu!
+<p>7. Open an image with ImageJ then click the on the plugin in the menu to run</p>
 
-6. Updating the Plugin
-To update the plugin, pull the latest changes from the repository and rebuild the JAR file:
+<p>8. To update the plugin pull the latest changes from the repository and rebuild the JAR file:</p>
 
+```
 git pull
+```
+
+```
 mvn clean package
+```
 
-Then, copy the new JAR file to your ImageJ plugins directory using either the manual method or the Maven method and restart ImageJ.
+  
+  
+<h2>💻 Built with</h2>
 
-Troubleshooting
-Build Errors: Ensure you have the correct version of Java and Maven installed, and that your environment variables (JAVA_HOME and MAVEN_HOME) are properly set.
-Plugin Not Showing: Ensure the JAR file is placed in the correct plugins folder or installed via Maven and restart ImageJ.
-If you encounter any issues, feel free to open an issue on the GitHub repository.
+Technologies used in the project:
 
-License
-This project is licensed under the MIT License. See the LICENSE file for details.
-
-Author
-[Your Name] - Developer of the plugin.
-
-This addition will guide users on how to use Maven to directly copy the plugin and its dependencies into the ImageJ directory, as requested.
-
+*   Java
 
 
 
