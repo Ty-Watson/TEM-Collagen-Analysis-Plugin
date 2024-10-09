@@ -28,10 +28,13 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.function.Consumer;
 
 import static CollagenAnalysis.ImageProcessingUtils.*;
 import static java.awt.Color.cyan;
@@ -71,8 +74,11 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         //setting up post processing items
         String imageName = IJ.getImage().getTitle();
+        int dotIndex = imageName.lastIndexOf('.');
+        if (dotIndex > 0 && dotIndex <= imageName.length() - 2) {
+            imageName = imageName.substring(0, dotIndex);
+        }
         ArrayList<ImagePlus> imagesToSave = new ArrayList<>();
-
 
 
         //scale down image to managable size
@@ -311,122 +317,146 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
             e.convertToNM(nanometers_over_pixels);
         }
 
-        //get image name without file extension
-        int dotIndex = imageName.lastIndexOf('.');
-        if (dotIndex > 0 && dotIndex <= imageName.length() - 2) {
-            imageName = imageName.substring(0, dotIndex);
-        }
-        // Get the path of the image currently open in ImageJ
-        //String path = IJ.getDirectory("Choose a directory to create");
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Choose a directory to create");
-        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        String finalImageName = imageName;
+        SwingUtilities.invokeLater(() -> handleCreateDirectory(finalImageName, selectedDirectory -> {
+            // Generate csv files
+            Path newFolderPath = Paths.get(selectedDirectory);
 
-        int returnValue = chooser.showOpenDialog(null);
-
-        String path;
-        if (returnValue == JFileChooser.APPROVE_OPTION) {
-            File selectedDirectory = chooser.getSelectedFile();
-            System.out.println("Selected directory: " + selectedDirectory.getAbsolutePath());
-            path = selectedDirectory.getAbsolutePath() + File.separator;
-        } else {
-            System.out.println("No directory selected.");
-            path = null;
-        }
-
-        Path newFolderPath;
-
-        if (path != null) {
-            createDirectory(path + imageName);
-            newFolderPath = Paths.get(path + imageName);
-        } else {
-            IJ.showMessage("No directory chosen to save images");
-            newFolderPath = null;
-        }
-
-        // Generate csv files
-        try{
-            File Results_In_Pixels = new File(newFolderPath.toString() + File.separator + "Results_In_Pixels.csv");
-            if(Results_In_Pixels.delete()){
-                Results_In_Pixels.createNewFile();
+            // create new directory the user selected with folder name equal to image name
+            if (!Files.exists(newFolderPath)) {
+                try {
+                    Files.createDirectories(newFolderPath);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return;  // Exit if directory creation fails
+                }
             }
-            FileWriter out = new FileWriter(Results_In_Pixels);
-            CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.withHeader(
-                    "Area (pixels^2)", "Major Radius (pixels)", "Minor Radius (pixels)",
-                    "Angle (degrees)", "Centroid X (pixels)", "Centroid Y (pixels)",
-                    "Covariance XX (pixels^2)", "Covariance XY (pixels^2)", "Covariance YY (pixels^2)",
-                    "Component Proportion"));
 
-            //TODO: if remove problematic centroids, need to use that size for this loop. Need to use ellipse size
-            for(Ellipse e : ellipses){
-                printer.printRecord(formatField(e.postProbArea),
-                        formatField(e.majorRadius),
-                        formatField(e.minorRadius),
-                        formatField(e.angle),
-                        formatField(e.x),
-                        formatField(e.y),
-                        formatField(e.cov[0][0]),
-                        formatField(e.cov[0][1]),
-                        formatField(e.cov[1][1]),
-                        formatField(e.componentProportion));
+            try{
+                File Results_In_Pixels = new File(newFolderPath.toString() + File.separator + "Results_In_Pixels.csv");
+                if(Results_In_Pixels.delete()){
+                    Results_In_Pixels.createNewFile();
+                }
+                FileWriter out = new FileWriter(Results_In_Pixels);
+                CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.withHeader(
+                        "Area (pixels^2)", "Major Radius (pixels)", "Minor Radius (pixels)",
+                        "Angle (degrees)", "Centroid X (pixels)", "Centroid Y (pixels)",
+                        "Covariance XX (pixels^2)", "Covariance XY (pixels^2)", "Covariance YY (pixels^2)",
+                        "Component Proportion"));
+
+                for(Ellipse e : ellipses){
+                    printer.printRecord(formatField(e.postProbArea),
+                            formatField(e.majorRadius),
+                            formatField(e.minorRadius),
+                            formatField(e.angle),
+                            formatField(e.x),
+                            formatField(e.y),
+                            formatField(e.cov[0][0]),
+                            formatField(e.cov[0][1]),
+                            formatField(e.cov[1][1]),
+                            formatField(e.componentProportion));
+                }
+                out.close();
+
+            }catch (Exception e){
+                e.printStackTrace();
             }
-            out.close();
 
-        }catch (Exception e){
-            e.printStackTrace();
-        }
+            try{
+                File Results_In_Nm = new File(newFolderPath.toString() + File.separator + "Results_In_Nm.csv");
+                if(Results_In_Nm.delete()){
+                    Results_In_Nm.createNewFile();
+                }
+                FileWriter out2 = new FileWriter(Results_In_Nm);
+                CSVPrinter printer = new CSVPrinter(out2, CSVFormat.DEFAULT.withHeader(
+                        "Area (nanometers^2)", "Major Radius (nanometers)", "Minor Radius (nanometers)",
+                        "Aspect Ratio"));
 
-        try{
-            File Results_In_Nm = new File(newFolderPath.toString() + File.separator + "Results_In_Nm.csv");
-            if(Results_In_Nm.delete()){
-                Results_In_Nm.createNewFile();
+                for(Ellipse e : ellipses){
+                    printer.printRecord(formatField(e.area_nm),
+                            formatField(e.majorRadius_nm),
+                            formatField(e.minorRadius_nm),
+                            formatField(e.aspectRatio_nm));
+                }
+                out2.close();
+
+            }catch (Exception e){
+                e.printStackTrace();
             }
-            FileWriter out2 = new FileWriter(Results_In_Nm);
-            CSVPrinter printer = new CSVPrinter(out2, CSVFormat.DEFAULT.withHeader(
-                    "Area (nanometers^2)", "Major Radius (nanometers)", "Minor Radius (nanometers)",
-                    "Aspect Ratio"));
 
-            //TODO: need to use final ellipse size
-            for(Ellipse e : ellipses){
-                printer.printRecord(formatField(e.area_nm),
-                        formatField(e.majorRadius_nm),
-                        formatField(e.minorRadius_nm),
-                        formatField(e.aspectRatio_nm));
+
+            //save images to path specified from user
+            for(ImagePlus image: imagesToSave){
+                imageManager.scaleUp(image);
+                String fileName = image.getTitle();
+                String savePath = newFolderPath.resolve(fileName + ".tiff").toString();
+                //String savePath = newFolderPath + fileName + ".tiff";
+                FileSaver fileSaver = new FileSaver(image);
+                if(fileSaver.saveAsTiff(savePath)){
+                    System.out.println("Saved " + fileName);
+                }
+                else{
+                    System.out.println("Save failed");
+                }
             }
-            out2.close();
 
-        }catch (Exception e){
-            e.printStackTrace();
-        }
+            //DONE
+            IJ.showStatus("Processing done");
+            IJ.log("Processing done. Check directory specified for results");
+            System.out.println("Processing done");
+        }));
 
-
-        //save images to path specified from user
-        for(ImagePlus image: imagesToSave){
-            imageManager.scaleUp(image);
-            String fileName = image.getTitle();
-            String savePath = newFolderPath.resolve(fileName + ".tiff").toString();
-            //String savePath = newFolderPath + fileName + ".tiff";
-            FileSaver fileSaver = new FileSaver(image);
-            if(fileSaver.saveAsTiff(savePath)){
-                System.out.println("Saved " + fileName);
-            }
-            else{
-                System.out.println("Save failed");
-            }
-        }
-
-
-        //DONE
-        IJ.showStatus("Processing done");
-        IJ.log("Processing done. Check directory specified for results");
-        System.out.println("Processing done");
     }
 
     private static String formatField(double value) {
         return String.format("%-28.8f", value);
     }
 
-    public void createDirectory(String path) {
+    public void handleCreateDirectory(String imageName, Consumer<String> callback){
+
+        boolean validDirectory = false;
+
+        while (!validDirectory) {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setDialogTitle("Select a Directory");
+            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);  // Limit the chooser to directories
+            int returnValue = chooser.showDialog(null, "Choose Directory");
+
+            if (returnValue == JFileChooser.APPROVE_OPTION) {
+                File selectedDirectory = new File(chooser.getSelectedFile() + File.separator + imageName);
+
+                // Check if the directory already exists
+                if (selectedDirectory.exists()) {
+                    int option = JOptionPane.showConfirmDialog(null,
+                            "Directory already exists. Do you want to pick another directory?",
+                            "Directory Exists", JOptionPane.YES_NO_OPTION);
+
+                    if (option == JOptionPane.YES_OPTION) {
+                        // Loop again to pick a different directory
+                        continue;
+                    } else {
+                        // If NO, you can choose to exit or do something else
+                        validDirectory = true;  // Exit loop if user doesn't want to pick another one
+                        callback.accept(null);
+                    }
+                } else {
+                    // Directory doesn't exist, proceed
+                    validDirectory = true;
+                    System.out.println("Selected directory: " + selectedDirectory.getAbsolutePath());
+                    callback.accept(selectedDirectory.getAbsolutePath());
+                }
+            } else {
+                // User canceled the operation
+                System.out.println("Operation canceled.");
+                validDirectory = true;  // Exit loop if user cancels
+                callback.accept(null);
+            }
+        }
+
+    }
+
+
+    public boolean createDirectory(String path) {
         File directory = new File(path);
 
         if (!directory.exists()) {
@@ -435,14 +465,18 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
                 if (isCreated) {
                     IJ.showMessage("Directory created successfully: " + path);
+                    return true;
                 } else {
                     IJ.showMessage("Failed to create directory: " + path);
+                    return false;
                 }
             } catch (SecurityException e) {
                 IJ.showMessage("Permission denied: Unable to create directory. " + e.getMessage());
+                return false;
             }
         } else {
             IJ.showMessage("Directory already exists: " + path);
+            return false;
         }
     }
 
