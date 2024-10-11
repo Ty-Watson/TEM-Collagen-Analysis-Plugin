@@ -17,6 +17,29 @@ Here're some of the project's best features:
 
 <h2>🛠️ Installation Steps:</h2>
 
+<h3>Installing plugin to your Fiji installation</h3>
+
+<p>This is the recommended way to install this plugin because building from source in more complicated</p>
+
+<p>1. Open Fiji and click on the help tab at the top menu</p>
+
+<p>2. Click on Update in the dropdown menu. Update Fiji if there are any files listed then close and reopen fiji and follow these steps again </p>
+
+<p>3. Click on Manage Update Site at the bottom of the menu after your Fiji is up to date</p>
+
+<p>4. Click on Add Unlisted Site and enter https://sites.imagej.net/Collagen-Analysis/ as the url of the update site. You can also give this site a name under the name box. Click Apply and Close when finished</p>
+
+<p>5. Once you add the update site for this plugin, the updater will prompt you to intall the jar file that contains the plugin</p>
+
+<p>6. After the updater installs the jar file, you should get an update complete and should exit and reopen Fiji</p>
+
+<p>7. Click on the plugins Menu and you should see a plugin named Collagen Analysis in the dropdown menu</p>
+
+<p>8. In order to use the plugin, you have to have an image already opened in Fiji that you want to process.</p>
+
+
+<h3>Building From Source</h3>
+
 <p>1. Prereqs: Download and install ImageJ. Java Development Kit (JDK) - Version 8 or higher. Maven - A Java build tool you can install it from Maven's official site.</p>
 
 <p>2. Clone the Repository First clone the plugin repository to your local machine. Open your terminal (or command prompt) and navigate to your desired directory and run:</p>
@@ -69,7 +92,7 @@ mvn clean package
 <p>2. Find the Collagen Analysis plugin in the Plugins menu and click on it</p>
 <p>3. Draw a line for the scale bar then click ok on the dialog box</p>
 <p>4. Enter how long the line is in nanometers so the conversion factor can be set</p>
-<p>5. Click in the image with the extended borders. If there are regions that need to be excluded from processing, then draw a polygon around the region you want to exclude then click a on you keyboard to exclude the region</p>
+<p>5. Read the instructions and click ok to start excluding regions from the imgae. Click in the image with the extended borders. If there are regions that need to be excluded from processing, then draw a polygon around the region you want to exclude then click a on you keyboard to exclude the region</p>
 <p>6. When finished excluding regions in the image, press escape on your keyboard</p>
 <p>7. Once the voronoi diagram is generated, right click on centroids that did not perform well to delete them. Left click areas where centroids need to be added. Once you are finished with editing the voronoi image, click ok in the dialog box</p>
 <p>8. Once the image with the ellipses have been generated, left click on any ellipses that did not perform well to delete them. When you are finshed, press ok on the dialog box</p>
