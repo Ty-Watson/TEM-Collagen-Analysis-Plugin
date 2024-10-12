@@ -8,9 +8,9 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>edu.lsu.be</groupId>
-  <artifactId>_tem-collagen-analysis-plugin</artifactId>
+  <artifactId>tem_collagen_analysis_plugin</artifactId>
   <name>TEM-Collagen-Analysis-Plugin</name>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.1</version>
   <description>An imageJ plugin to analyze collagen fibrils</description>
   <url>https://tywats.com</url>
   <issueManagement>
@@ -98,6 +98,13 @@
                     <include>smile/math/**</include>
                   </includes>
                 </filter>
+                <filter>
+                  <artifact>org.tinfour:TinfourCore</artifact>
+                  <includes>
+                    <include>tinfour/interpolation/**</include>
+                    <include>tinfour/standard/**</include>
+                  </includes>
+                </filter>
               </filters>
               <transformers>
                 <transformer>
@@ -124,7 +131,7 @@
                 <resource>
                   <directory>${project.build.directory}</directory>
                   <includes>
-                    <include>_${project.build.finalName}.jar</include>
+                    <include>${project.build.finalName}.jar</include>
                   </includes>
                 </resource>
               </resources>
@@ -170,17 +177,11 @@
       <version>1.0.3</version>
       <scope>compile</scope>
     </dependency>
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-csv</artifactId>
-      <version>1.9.0</version>
-      <scope>compile</scope>
-    </dependency>
   </dependencies>
   <properties>
     <license.copyrightOwners>My Company, Inc.</license.copyrightOwners>
-    <scijava.app.directory>/Applications/Fiji.app</scijava.app.directory>
     <license.licenseName>cc0</license.licenseName>
+    <scijava.app.directory>/Applications/Fiji.app</scijava.app.directory>
     <package-name>CollagenAnalysis</package-name>
     <main-class>CollagenAnalysis.CollagenAnalysisPlugin</main-class>
   </properties>

@@ -16,11 +16,13 @@ import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 
+import static CollagenAnalysis.Constants.*;
 import static CollagenAnalysis.ImageProcessingUtils.calculateDistance;
 
 public class ImageManager {
     private int scale = 1;
     private ImageProcessor ip;
+    private ImageProcessor scaledUpOriginalProcessor;
     private int height;
     private int width;
     private double  conversionFactor;
@@ -29,6 +31,7 @@ public class ImageManager {
     private boolean exitLoop = false;
 
     public ImageManager(ImagePlus imp){
+        this.scaledUpOriginalProcessor = imp.getProcessor();
         this.ip = imp.getProcessor();
         this.height = ip.getHeight();
         this.width = ip.getWidth();
@@ -41,6 +44,8 @@ public class ImageManager {
             ip = ip.resize(width, height);
             scale *= 2;
         }
+        //assign scale constant for the rest of plugin
+        SCALE = scale;
     }
     public void scaleUp(ImagePlus imp){
         ImageProcessor imageProcessor = imp.getProcessor().duplicate();
@@ -50,6 +55,18 @@ public class ImageManager {
         imp.setProcessor(imageProcessor.resize(w, h));
     }
     public void showScaledUp(ImagePlus imp){
+        if(DEBUG_MODE){
+            ImageProcessor imageProcessor = imp.getProcessor().duplicate();
+            //drawExcludedRegions(imageProcessor);
+            int h = imageProcessor.getHeight() * scale;
+            int w = imageProcessor.getWidth() * scale;
+            imageProcessor = imageProcessor.resize(w, h);
+            ImagePlus newImage = new ImagePlus(imp.getTitle(), imageProcessor);
+            newImage.show();
+        }
+    }
+    public void showScaledUp(ImagePlus imp, boolean override){
+
         ImageProcessor imageProcessor = imp.getProcessor().duplicate();
         //drawExcludedRegions(imageProcessor);
         int h = imageProcessor.getHeight() * scale;
@@ -67,7 +84,6 @@ public class ImageManager {
 
     public void DrawScaleBar(ImagePlus imp){
         IJ.setTool("line");
-        //TODO make a loop if fail first time
         while(true){
             WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Draw a line for the scale bar then click ok");
             wfud.show();
@@ -108,12 +124,13 @@ public class ImageManager {
             ip = ip.convertToByteProcessor();
         }
         //ImageProcessor t = ip.get
+        //Todo: ix returning this value it is not needed
         ImageProcessor processorWithExcludedRegions = ip.duplicate();
-        int borderSize = 50;
-        ImageProcessor ipExt = ip.createProcessor(ip.getWidth() + 2 * borderSize, ip.getHeight() + 2 * borderSize);
+
+        ImageProcessor ipExt = scaledUpOriginalProcessor.createProcessor(scaledUpOriginalProcessor.getWidth()  + 2 * borderSize, scaledUpOriginalProcessor.getHeight()  + 2 * borderSize);
         ipExt.setColor(255);
         ipExt.fill();
-        ipExt.insert(ip, borderSize, borderSize);
+        ipExt.insert(scaledUpOriginalProcessor, borderSize, borderSize);
 
         // Display extended image and set up key events
         ImagePlus impExt = new ImagePlus("Extended Image", ipExt);
@@ -126,44 +143,22 @@ public class ImageManager {
                 //GlobalKeyListener.addGlobalKeyListener();
                 if (e.getKeyCode() == KeyEvent.VK_A) {
                     addPolygonToRoiManager(impExt, roiManager);
-                } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-                    exitLoop = true;
-                    IJ.log("Excluding regions complete...");
                 }
             }
         });
-
-        //String s = "Click in image. Draw a polygon then press the 'a' key to exclude the region from processing. Press 'Escape' key to finish and exit";
-        IJ.log("Click in image. Draw a polygon then press the 'a' key to exclude the region from processing. Press 'Escape' key to finish and exit");
-        //TextWindow textWindow = new TextWindow("Action Required", s, 800, 100);
-        GenericDialog gd = new GenericDialog("Action Required");
-        String instructions = "Step 1: Click in the Extended Image.\n" +
-                "Step 2: Draw a polygon then press the 'a' key to exclude the region from processing.\n" +
-                "Step 3: Press 'Escape' key to finish and exit";
-        gd.setInsets(10, 10, 10); // Add some spacing around the text
-        gd.addMessage(instructions);
-        gd.showDialog(); // Display the dialog
-        // User interaction for drawing polygons and excluding regions
         IJ.setTool("polygon");
-        // Loop until Escape is pressed ot exit out of excluding regions
-        while (!exitLoop) {
-            //IJ.setTool("polygon");
-            IJ.wait(1000); // Small delay to prevent the loop from consuming too much CPU
-
-//            Roi roi = impExt.getRoi();
-//            if (roi != null) {
-//                // User has drawn a polygon, wait for input (handled by key events)
-//                IJ.log("Polygon drawn, press 'A' to add or 'Escape' to finish.");
-//            }
-        }
+        IJ.log("Excluding regions instructions: " + excludeRegionsInstructions);
+        WaitForUserDialog wfud = new WaitForUserDialog("Action Required", excludeRegionsInstructions);
+        wfud.show();
 
         //generate a mask where coord = true if its in an excluded region
+        //scaled down image exclusion mask
         exclusionMask = new boolean[ip.getWidth()][ip.getHeight()];
         // Get ROIs and create the exclusion mask
         Roi[] rois = roiManager.getRoisAsArray();
         for (Roi roi : rois) {
             // Shift the ROI coordinates back to the original image coordinate system
-            roi.setLocation(roi.getBounds().x - borderSize, roi.getBounds().y - borderSize);
+            roi = adjustAndScaleDownRoi(roi, borderSize, scale);
             for (int y = 0; y < ip.getHeight(); y++) {
                 for (int x = 0; x < ip.getWidth(); x++) {
                     if (roi.contains(x,y)) {
@@ -179,6 +174,26 @@ public class ImageManager {
         IJ.setTool("hand");
 
         return processorWithExcludedRegions;
+    }
+    // Helper method to adjust for the border and scale down the ROI since the exclusion mask is for the scaled down image and
+    //the user is excluding regions on the full image
+    private Roi adjustAndScaleDownRoi(Roi roi, int borderSize, double scale) {
+        Polygon polygon = roi.getPolygon();
+        int[] xPoints = polygon.xpoints;
+        int[] yPoints = polygon.ypoints;
+
+        int[] adjustedXPoints = new int[xPoints.length];
+        int[] adjustedYPoints = new int[yPoints.length];
+
+        // Adjust each point in the ROI to account for the border and scale down
+        for (int i = 0; i < xPoints.length; i++) {
+            // Subtract the border size first, then scale down the coordinates
+            adjustedXPoints[i] = (int) ((xPoints[i] - borderSize) / scale);
+            adjustedYPoints[i] = (int) ((yPoints[i] - borderSize) / scale);
+        }
+
+        // Return a new ROI with the adjusted and scaled-down points
+        return new PolygonRoi(adjustedXPoints, adjustedYPoints, xPoints.length, Roi.POLYGON);
     }
 
     // Add the polygon to the RoiManager when 'A' is pressed

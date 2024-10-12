@@ -41,7 +41,7 @@ public class ImageProcessingUtils {
         }
         return areaPix2;
     }
-    public static int[] assignEachFibrilPixelToFibril(int fibrilPixelsLength, int fibrilCentroidsLength, double[][] post_fibril, ArrayList<Boolean> isBoundryCentroid){
+    public static int[] assignEachFibrilPixelToFibril(int fibrilPixelsLength, int fibrilCentroidsLength, double[][] post_fibril){
         int[] clusterAssignments = new int[fibrilPixelsLength];
 
         // Iterate over each fibril pixel to find the centroid with the maximum posterior probability

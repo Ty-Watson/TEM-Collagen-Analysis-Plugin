@@ -3,6 +3,8 @@ package CollagenAnalysis;
 import java.awt.*;
 import java.util.ArrayList;
 
+import static CollagenAnalysis.Constants.SCALE;
+
 public class Ellipse {
     double[] xEllipse;
     double[] yEllipse;
@@ -37,8 +39,9 @@ public class Ellipse {
 
         // Prepare the coordinates for drawing
         for (int j = 0; j < DEGREES; j++) {
-            xPoints[j] = (int) Math.round(xEllipse[j]);
-            yPoints[j] = (int) Math.round(yEllipse[j]);
+            //have to scale up the ellipse to show user on the full image
+            xPoints[j] = (int) Math.round(xEllipse[j] * SCALE);
+            yPoints[j] = (int) Math.round(yEllipse[j] * SCALE);
         }
 
         // Create a polygon from the ellipse points
@@ -90,8 +93,5 @@ public class Ellipse {
         minorRadius_nm = minorRadius * nanometers_over_pixels;
         aspectRatio_nm = aspectRatio * nanometers_over_pixels;
     }
-
-
-
 
 }

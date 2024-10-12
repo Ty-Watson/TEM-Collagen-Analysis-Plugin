@@ -13,6 +13,8 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import static CollagenAnalysis.Constants.SCALE;
+import static CollagenAnalysis.Constants.pointSize;
 import static CollagenAnalysis.ImageProcessingUtils.*;
 
 public class EllipseFitting {
@@ -34,11 +36,15 @@ public class EllipseFitting {
     private ArrayList<Double> angle_of_major_axis = new ArrayList<Double>();
 
     ArrayList<double[]> nonboundryCentroids = new ArrayList<>();
+    ArrayList<Boolean> isBoundryCentroid = new ArrayList<>();
     private double[][] post_fibril;
 
+    //scaled up image
     private ImagePlus imp;
 
+    //scaled up image
     private ImageProcessor original;
+    //scaled up processor
     private ImageProcessor ip;
     private ImageCanvas canvas;
 
@@ -52,14 +58,23 @@ public class EllipseFitting {
         this.cluster_idx = cluster_idx;
         this.post_fibril = post_fibril;
         this.componentProportion = componentProportion;
+        //this.isBoundryCentroid = isBoundryCentroid;
         this.nonboundryCentroids = nonBoundryCentroids;
-        this.ip = imp.getProcessor().duplicate().convertToColorProcessor();
-        this.original = imp.getProcessor().duplicate().convertToColorProcessor();
+        setImageAndProcessors(imp);
         ip.snapshot();
-        this.imp = new ImagePlus("Ellipse Fitting", ip);
         this.imp.show();
         setCanvasEvents();
     }
+    private void setImageAndProcessors(ImagePlus imp){
+        //show user scaled up image (original image they submitted, but we downsize image for faster processing)
+        ImageProcessor imageProcessor = imp.getProcessor().duplicate().convertToColorProcessor();
+        int h = imageProcessor.getHeight() * SCALE;
+        int w = imageProcessor.getWidth() * SCALE;
+        this.ip = imageProcessor.resize(w, h);
+        this.original = ip.duplicate();
+        this.imp = new ImagePlus("Ellipse Fitting", ip);
+    }
+
     private static double[] createThetaArray() {
         double[] theta = new double[361];
         for (int i = 0; i <= 360; i++) {
@@ -68,7 +83,7 @@ public class EllipseFitting {
         return theta;
     }
 
-    public  void fitEllipses(ArrayList<Boolean> isBoundryCentroid) {
+    public  void fitEllipses() {
         //recalculate these when user deletes ellipse
         xEllipses.clear();
         yEllipses.clear();
@@ -209,13 +224,14 @@ public class EllipseFitting {
             ip.drawPolygon(e.ellipsePolygon);
             //draw centroid
             // Size of the maxima point to be drawn (radius of the circle around the maxima point)
-            int pointSize = 2;
+
             int color = Color.red.getRGB();
 
             // Draw each maximum point as a red circle on the RGB image
 
-            double x = e.x;
-            double y = e.y;
+            //have to scale up ellipse centroid coordinate to show user on full image
+            double x = e.x * SCALE;
+            double y = e.y * SCALE;
 
             // Draw a circle or a larger point at (x, y) in red
             for (int dx = -pointSize; dx <= pointSize; dx++) {
@@ -240,6 +256,8 @@ public class EllipseFitting {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (e.getButton() == MouseEvent.BUTTON1) { // Left click delete ellipse
+                    //do not need to scale down click because the ellipse polygon is generated for the full size image
+                    //so we need to check if click is in the polygon to delete it
                     int clickX = canvas.offScreenX(e.getX());
                     int clickY = canvas.offScreenY(e.getY());
 
@@ -262,7 +280,7 @@ public class EllipseFitting {
             Ellipse e = fibrilEllipses.get(i);
             Polygon p = e.ellipsePolygon;
             //if the click is in the polygon and centroid is in ellipse
-            if (p.contains(clickX, clickY) && p.contains(e.x, e.y)) {
+            if (p.contains(clickX, clickY) && p.contains(e.x * SCALE, e.y * SCALE)) { // have to scale up ellipse centroid coordinates because the polygon is generated on the full image
                 fibrilEllipses.remove(i);
                 System.out.println("# of ellipses: " + fibrilEllipses.size());
                 return i;

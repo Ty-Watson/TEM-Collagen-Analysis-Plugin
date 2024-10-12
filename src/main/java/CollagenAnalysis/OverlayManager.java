@@ -13,6 +13,8 @@ import java.awt.*;
 import java.awt.geom.GeneralPath;
 import java.util.ArrayList;
 
+import static CollagenAnalysis.Constants.SCALE;
+import static CollagenAnalysis.Constants.pointSize;
 import static CollagenAnalysis.EllipseFitting.DEGREES;
 import ij.process.ImageProcessor;
 import java.awt.Color;
@@ -204,7 +206,7 @@ public  class OverlayManager {
         // Use forEach to iterate through the stream and draw each edge
         g.edgeStream().filter(e -> e.getA() != null && e.getB() != null).forEach(e -> {
             de.alsclo.voronoi.graph.Point a = e.getA().getLocation();
-            Point b = e.getB().getLocation();
+            Point b = e.getB().getLocation() ;
             ip.drawLine((int) a.x,  (int)a.y, (int) b.x, (int) b.y);
         });
     }
@@ -261,14 +263,11 @@ public  class OverlayManager {
 
     public static void overlayCentroids(ImageProcessor ip, double[][] centroids, int color){
 
-
-        // Size of the maxima point to be drawn (radius of the circle around the maxima point)
-        int pointSize = 2;
-
         // Draw each maximum point as a red circle on the RGB image
         for (double[] point : centroids) {
-            double x = point[0];
-            double y = point[1];
+            //have to scale centroids up to overlay on the full image because the original image is scaled down for faster processing
+            double x = point[0] * SCALE;
+            double y = point[1] * SCALE;
 
             // Draw a circle or a larger point at (x, y) in red
             for (int dx = -pointSize; dx <= pointSize; dx++) {

@@ -8,6 +8,8 @@ import org.apache.commons.math3.linear.RealMatrix;
 import java.awt.*;
 import java.util.ArrayList;
 
+import static CollagenAnalysis.Constants.pointSize;
+
 public class FibrilUtils {
     private final double regularizationValue = 0.1;
 
@@ -56,7 +58,6 @@ public class FibrilUtils {
 
     private void generateImageWithProblematicCentroids(ImageProcessor ip){
         // Size of the maxima point to be drawn (radius of the circle around the maxima point)
-        int pointSize = 2; // This can be adjusted based on how big you want the maxima points to be
 
         // Draw each maximum point as a red circle on the RGB image
         for (double[] point : problematicCentroids) {

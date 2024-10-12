@@ -20,6 +20,7 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static CollagenAnalysis.Constants.pointSize;
 import static CollagenAnalysis.ImageProcessingUtils.countNonZeroPixels;
 import static CollagenAnalysis.ImageProcessingUtils.derivePolynomial;
 import static CollagenAnalysis.ImageProcessingUtils.squarePolynomial;
@@ -34,35 +35,6 @@ public class CentroidManager {
     }
     ImageProcessor ip;
 
-
-
-    public static void plotCentroids(ImageProcessor ip, double[][] centroids, int color){
-
-
-        // Size of the maxima point to be drawn (radius of the circle around the maxima point)
-        int pointSize = 2; // This can be adjusted based on how big you want the maxima points to be
-
-        // Draw each maximum point as a red circle on the RGB image
-        for (double[] point : centroids) {
-            double x = point[0];
-            double y = point[1];
-
-            // Draw a circle or a larger point at (x, y) in red
-            for (int dx = -pointSize; dx <= pointSize; dx++) {
-                for (int dy = -pointSize; dy <= pointSize; dy++) {
-                    if (dx * dx + dy * dy <= pointSize * pointSize) {
-                        double newX = x + dx;
-                        double newY = y + dy;
-                        if (newX >= 0 && newX < ip.getWidth() && newY >= 0 && newY < ip.getHeight()) {
-                            ip.set((int)newX, (int)newY, color);
-                        }
-                    }
-                }
-            }
-        }
-
-        System.out.print("Ploting centriods");
-    }
 
     public ArrayList<double[]> findCentroids(){
         double optimalSigma = findOptimalSigma();

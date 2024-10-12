@@ -23,6 +23,8 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static CollagenAnalysis.Constants.SCALE;
+import static CollagenAnalysis.Constants.pointSize;
 import static CollagenAnalysis.ImageProcessingUtils.findNearestCentroid;
 
 
@@ -30,17 +32,23 @@ public class VoronoiManager {
     public VoronoiManager(ImagePlus imp, boolean[][] exclusionMask){
 
         ip = imp.getProcessor().duplicate();
+        setScaleUpImage();
         this.exclusionMask = exclusionMask;
         applyExclusionMask();
-        this.imp = new ImagePlus("Voronoi", ip);
-        this.imp.show();
+        this.scaledUpImage.show();
 
         setCanvasEvents();
     }
     private ImagePlus imp;
+    public ImagePlus scaledUpImage;
+    //have to have processor here for scaled up image because ip.reset only works with instatiated processor rather than imageplus.getprocessor()
+    //so in order to have the image reset and draw the updated changes, have to call imageprocessor.reset
+    public ImageProcessor scaledUpProcessor;
     private ImageProcessor ip;
+    //user corrected voronoi diagram
     public Voronoi voronoi;
     public boolean[][] exclusionMask;
+    //inital voronoi diagram generated
     public Voronoi init_voronoi;
 
     private ArrayList<double[]> centroids;
@@ -124,29 +132,37 @@ public class VoronoiManager {
         for (Iterator<Edge> it = edges.iterator(); it.hasNext(); ) {
             Edge edge = it.next();
             if (edge.getA() != null && edge.getB() != null) {
-                cells.computeIfAbsent(edge.getSite1(), k -> new HashSet<>()).add(edge.getA());
-                cells.computeIfAbsent(edge.getSite1(), k -> new HashSet<>()).add(edge.getB());
-                cells.computeIfAbsent(edge.getSite2(), k -> new HashSet<>()).add(edge.getA());
-                cells.computeIfAbsent(edge.getSite2(), k -> new HashSet<>()).add(edge.getB());
+                // Scale down the points because voronoi is being generated on full image
+                Point scaledA = new Point(edge.getA().getLocation().x / SCALE, edge.getA().getLocation().y / SCALE);
+                Point scaledB = new Point(edge.getB().getLocation().x / SCALE, edge.getB().getLocation().y / SCALE);
+
+                //scale down these values because the voronoi edge sites are coming from full image
+                Point site1 = new Point(edge.getSite1().x / 2, edge.getSite1().y / 2);
+                Point site2 = new Point(edge.getSite2().x / 2, edge.getSite2().y / 2);
+
+                cells.computeIfAbsent(site1, k -> new HashSet<>()).add(new Vertex(scaledA));
+                cells.computeIfAbsent(site1, k -> new HashSet<>()).add(new Vertex(scaledB));
+                cells.computeIfAbsent(site2, k -> new HashSet<>()).add(new Vertex(scaledA));
+                cells.computeIfAbsent(site2, k -> new HashSet<>()).add(new Vertex(scaledB));
             }
         }
 
-        List<Point> centroids = new ArrayList<>();
+        List<Point> centroids_ = new ArrayList<>();
 
         cells.forEach((point, vertices) -> {
             // System.out.println("Cell centered at: " + point);
-            centroids.add(point);
+            centroids_.add(point);
             //System.out.println("Vertices:");
             //vertices.forEach(vertex -> System.out.println(vertex));
         });
-        voronoi_centroids = centroids;
+        voronoi_centroids = centroids_;
     }
 
     public void drawVoronoi(){
-        ip.snapshot();
+        scaledUpProcessor.snapshot();
         Collection<Point> points = new ArrayList<>();
         for( double[] centroid : centroids){
-            de.alsclo.voronoi.graph.Point point = new de.alsclo.voronoi.graph.Point(centroid[0], centroid[1]);
+            de.alsclo.voronoi.graph.Point point = new de.alsclo.voronoi.graph.Point(centroid[0] * SCALE, centroid[1] * SCALE);
             points.add(point);
         }
         voronoi = new Voronoi(points);
@@ -156,24 +172,24 @@ public class VoronoiManager {
 
         //ImageProcessor ip = imp.getProcessor().duplicate();
 
-        ip.setColor(Color.BLUE);
+        scaledUpProcessor.setColor(Color.BLUE);
 
 
         // Use forEach to iterate through the stream and draw each edge
         g.edgeStream().filter(e -> e.getA() != null && e.getB() != null).forEach(e -> {
             Point a = e.getA().getLocation();
             Point b = e.getB().getLocation();
-            ip.drawLine((int) a.x,  (int)a.y, (int) b.x, (int) b.y);
+            scaledUpProcessor.drawLine((int) a.x,  (int)a.y, (int) b.x, (int) b.y);
         });
-        imp.updateAndDraw();
-        overlayMaxima(centroids, Color.red.getRGB());
+        scaledUpImage.updateAndDraw();
+        overlayMaxima(Color.red.getRGB());
         applyExclusionMask();
     }
     public void initDrawVoronoi(){
-        ip.snapshot();
+        scaledUpProcessor.snapshot();
         Collection<Point> points = new ArrayList<>();
         for( double[] centroid : centroids){
-            Point point = new Point(centroid[0], centroid[1]);
+            Point point = new Point(centroid[0] * SCALE, centroid[1] * SCALE);
             points.add(point);
         }
         voronoi = new Voronoi(points);
@@ -184,37 +200,34 @@ public class VoronoiManager {
 
         //ImageProcessor ip = imp.getProcessor().duplicate();
 
-        ip.setColor(Color.BLUE);
+        scaledUpProcessor.setColor(Color.BLUE);
 
 
         // Use forEach to iterate through the stream and draw each edge
         g.edgeStream().filter(e -> e.getA() != null && e.getB() != null).forEach(e -> {
             Point a = e.getA().getLocation();
             Point b = e.getB().getLocation();
-            ip.drawLine((int) a.x,  (int)a.y, (int) b.x, (int) b.y);
+           scaledUpProcessor.drawLine((int) a.x,  (int)a.y, (int) b.x, (int) b.y);
         });
 
         //imageManager.drawExcludedRegions(ip);
 
-        imp.updateAndDraw();
-        overlayMaxima(centroids, Color.red.getRGB());
+        scaledUpImage.updateAndDraw();
+        overlayMaxima(Color.red.getRGB());
         applyExclusionMask();
     }
-    private void overlayMaxima(List<double[]> centroids, int color) {
+    private void overlayMaxima(int color) {
         // Convert the binarized image to RGB to overlay red points
-        ImageProcessor d = ip.duplicate();
+        ImageProcessor d = scaledUpProcessor.duplicate();
         ColorProcessor colorProcessor = d.convertToColorProcessor();
 
         // Define the red color
         //int red = (255 << 16); // RGB value for red
 
-        // Size of the maxima point to be drawn (radius of the circle around the maxima point)
-        int pointSize = 2; // This can be adjusted based on how big you want the maxima points to be
-
         // Draw each maximum point as a red circle on the RGB image
         for (double[] point : centroids) {
-            double x = point[0];
-            double y = point[1];
+            double x = point[0] * SCALE;
+            double y = point[1] * SCALE;
 
             // Draw a circle or a larger point at (x, y) in red
             for (int dx = -pointSize; dx <= pointSize; dx++) {
@@ -231,17 +244,25 @@ public class VoronoiManager {
         }
 
         // Display the result
-        imp.setProcessor(colorProcessor);
+        scaledUpImage.setProcessor(colorProcessor);
     }
     public void setCentroids(ArrayList<double[]> centroids){
         this.centroids = centroids;
     }
     public void showImg(){
-        imp.show();
+        scaledUpImage.show();
+    }
+    public void closeImg(){scaledUpImage.close();}
+    public void setScaleUpImage(){
+        ImageProcessor imageProcessor = ip.duplicate();
+        int h = imageProcessor.getHeight() * SCALE;
+        int w = imageProcessor.getWidth() * SCALE;
+        scaledUpProcessor = imageProcessor.resize(w, h);
+        scaledUpImage = new ImagePlus("Scaled up Voronoi Image", scaledUpProcessor);
     }
 
     private void setCanvasEvents(){
-        canvas = imp.getCanvas();
+        canvas = scaledUpImage.getCanvas();
 
 //        canvas.addMouseListener(new MouseAdapter() {
 //            @Override
@@ -283,15 +304,15 @@ public class VoronoiManager {
 
                         // Check if the event occurred on our canvas
                         if (mouseEvent.getSource() == canvas) {
-                            int clickX = canvas.offScreenX(mouseEvent.getX());
-                            int clickY = canvas.offScreenY(mouseEvent.getY());
+                            int clickX = canvas.offScreenX(mouseEvent.getX()) / SCALE;
+                            int clickY = canvas.offScreenY(mouseEvent.getY()) / SCALE;
 
 
                             // Find and remove the nearest centroid to the click
                             double[] nearestCentroid = findNearestCentroid(centroids, clickX, clickY);
                             if (nearestCentroid != null) {
                                 centroids.remove(nearestCentroid);
-                                ip.reset();
+                                scaledUpProcessor.reset();
                                 drawVoronoi();
                             }
                         }
@@ -304,8 +325,10 @@ public class VoronoiManager {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (e.getButton() == MouseEvent.BUTTON1) { // Left click add centroid
-                    int clickX = canvas.offScreenX(e.getX());
-                    int clickY = canvas.offScreenY(e.getY());
+                    int clickX = canvas.offScreenX(e.getX()) / SCALE;
+                    int clickY = canvas.offScreenY(e.getY()) / SCALE;
+
+
 
                     //cant add centroid in exclusion mask
                     if(exclusionMask[clickX][clickY]){
@@ -315,7 +338,7 @@ public class VoronoiManager {
 
                     double[] newCentroid = new double[]{ clickX, clickY};
                     centroids.add(newCentroid);
-                    ip.reset();
+                    scaledUpProcessor.reset();
                     drawVoronoi();
                 }
             }
@@ -441,96 +464,66 @@ public class VoronoiManager {
         return centroids;
     }
 
-    public ArrayList<double[]> identifyBoundaryFibrils(boolean[][] exclusionMask, ArrayList<double[]> pixels) {
-//        List<Vertex> voronoiVertices = new ArrayList<>();
-//        List<List<Integer>> voronoiCells = new ArrayList<>();
-//
-//        // Extract Voronoi vertices and cells from the Voronoi diagram
-//        for (Point centroid : voronoi_centroids) {
-//            Set<Vertex> cellVertices = cells.get(centroid);
-//            List<Integer> cellIndices = new ArrayList<>();
-//            for (Vertex vertex : cellVertices) {
-//                voronoiVertices.add(vertex);
-//                cellIndices.add(voronoiVertices.size() - 1);
-//            }
-//            voronoiCells.add(cellIndices);
-//        }
-//
-//        // Perform nearest neighbor search for Voronoi vertices
-//        int[] nearestPixelIndices = nearestNeighborSearch(pixels, voronoiVertices);
-
-
-        boolean[] isBoundaryCentroid = new boolean[voronoi_centroids.size()];
+    public ArrayList<double[]> identifyBoundaryFibrils(boolean[][] exclusionMask) {
         ArrayList<double[]> nonBoundryCentroids = new ArrayList<>();
         for(double[] centroid: centroids){
             Point centroidPont = new Point(centroid[0], centroid[1]);
             Set<Vertex> cellVertices = cells.get(centroidPont);
-            boolean isBoundary = false;
+            if(cellVertices != null){
+                boolean isBoundary = false;
 
-            for(Vertex v : cellVertices){
-                Point locationPoint = v.getLocation();
-                double[] location = new double[]{locationPoint.x, locationPoint.y};
-                if (location[0] < 0 || location[1] < 0 || location[0] >= ip.getWidth() || location[1] >= ip.getHeight()) {
-                    isBoundary = true;
-                    break;
+                for(Vertex v : cellVertices){
+                    Point locationPoint = v.getLocation();
+                    double[] location = new double[]{locationPoint.x, locationPoint.y};
+                    if (location[0] < 0 || location[1] < 0 || location[0] >= ip.getWidth() || location[1] >= ip.getHeight()) {
+                        isBoundary = true;
+                        break;
+                    }
+                    else if(exclusionMask[(int)location[0]][(int)location[1]]){
+                        isBoundary = true;
+                        break;
+                    }
                 }
-                else if(exclusionMask[(int)location[0]][(int)location[1]]){
-                    isBoundary = true;
-                    break;
+                if(!isBoundary){
+                    nonBoundryCentroids.add(centroid);
                 }
             }
-            if(!isBoundary){
-                nonBoundryCentroids.add(centroid);
+            else{
+                System.out.printf("Cant get vertices for centroids: %f %f \n", centroid[0], centroid[1]);
             }
+
         }
         return nonBoundryCentroids;
-//        for (int i = 0; i < voronoiCells.size(); i++) {
-//            List<Integer> cell = voronoiCells.get(i);
-//            boolean isBoundary = false;
-//
-//            for (int idx : cell) {
-//                Vertex vertex = voronoiVertices.get(idx);
-//                Point locationPoint = vertex.getLocation();
-//                double[] location = new double[]{locationPoint.x, locationPoint.y};
-//                if (location[0] < 0 || location[1] < 0 || location[0] >= ip.getWidth() || location[1] >= ip.getHeight()) {
-//                    isBoundary = true;
-//                    break;
-//                }
-//
-////                // Check exclusion mask
-////                int nearestPixelIndex = nearestPixelIndices[idx];
-////                double[] nearestPixel = pixels.get(nearestPixelIndex);
-////                if (exclusionMask[(int) nearestPixel[1]][(int) nearestPixel[0]]) {
-////                    isBoundary = true;
-////                    break;
-////                }
-//            }
-//
-//            isBoundaryCentroid[i] = isBoundary;
-//        }
-//
-//        // Output results
-//        for (int i = 0; i < isBoundaryCentroid.length; i++) {
-//            System.out.println("Centroid " + i + " is boundary: " + isBoundaryCentroid[i]);
-//        }
-        //return isBoundaryCentroid;
+
     }
-    public ArrayList<Boolean> identifyBoundaryFibrilsBoolean(boolean[][] exclusionMask, ArrayList<double[]> pixels) {
+    public ArrayList<Boolean> identifyBoundaryFibrilsBoolean(boolean[][] exclusionMask) {
 
         ArrayList<Boolean> isBoundaryCentroid = new ArrayList<Boolean>();
-        for(Point centroid: voronoi_centroids){
-            Set<Vertex> cellVertices = cells.get(centroid);
-            boolean isBoundary = false;
+        for(double[] centroid: centroids){
+            Point centroidPont = new Point(centroid[0], centroid[1]);
+            Set<Vertex> cellVertices = cells.get(centroidPont);
+            if(cellVertices != null){
+                boolean isBoundary = false;
 
-            for(Vertex v : cellVertices){
-                Point locationPoint = v.getLocation();
-                double[] location = new double[]{locationPoint.x, locationPoint.y};
-                if (location[0] < 0 || location[1] < 0 || location[0] >= ip.getWidth() || location[1] >= ip.getHeight()) {
-                    isBoundary = true;
-                    break;
+                for(Vertex v : cellVertices){
+                    Point locationPoint = v.getLocation();
+                    double[] location = new double[]{locationPoint.x, locationPoint.y};
+                    if (location[0] < 0 || location[1] < 0 || location[0] >= ip.getWidth() || location[1] >= ip.getHeight()) {
+                        isBoundary = true;
+                        break;
+                    }
+                    else if(exclusionMask[(int)location[0]][(int)location[1]]){
+                        isBoundary = true;
+                        break;
+                    }
                 }
+                isBoundaryCentroid.add(isBoundary);
             }
-           isBoundaryCentroid.add(isBoundary);
+            else{
+                System.out.printf("Cant get vertices for centroids: %f %f \n", centroid[0], centroid[1]);
+            }
+
+
         }
         return isBoundaryCentroid;
 //
@@ -561,8 +554,8 @@ public class VoronoiManager {
     }
 
     public  void applyExclusionMask() {
-        int width = ip.getWidth();
-        int height = ip.getHeight();
+        int width = scaledUpProcessor.getWidth();
+        int height = scaledUpProcessor.getHeight();
 
 //        if (exclusionMask.length != height || exclusionMask[0].length != width) {
 //            throw new IllegalArgumentException("Exclusion mask size does not match image dimensions.");
@@ -572,9 +565,12 @@ public class VoronoiManager {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 // Check if the pixel is in the excluded region
-                if (exclusionMask[x][y]) {
+                // Map the full-size pixel coordinates to the scaled-down coordinates
+                int scaledX = x / SCALE;
+                int scaledY = y / SCALE;
+                if (exclusionMask[scaledX][scaledY]) {
                     // Set the pixel to black (RGB value: 0)
-                    ip.putPixel(x, y, 0);  // Black pixel (for grayscale or RGB images)
+                    scaledUpProcessor.putPixel(x, y, 0);  // Black pixel (for grayscale or RGB images)
                 }
             }
         }

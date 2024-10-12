@@ -18,9 +18,6 @@ import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
-import ij.text.TextWindow;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
 import smile.neighbor.KDTree;
 import smile.neighbor.Neighbor;
 
@@ -33,9 +30,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.function.Consumer;
 
+import static CollagenAnalysis.Constants.*;
 import static CollagenAnalysis.ImageProcessingUtils.*;
 import static java.awt.Color.cyan;
 
@@ -90,6 +87,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         //originalImgScaled.show();
 
         // allow users to exclude regions from processing on image
+        IJ.log("Exclude Regions...");
         ImageProcessor processorWithExcludedRegions = imageManager.excludeRegions();
 
         //orignal image with excluded regions
@@ -108,31 +106,34 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         //smooth intensity values for binarization step
         ImagePlus imageAfterSmoothing = smoothIntensityValues(ip2);
         //binarize the smoothed img using Otsu optimal threshold
+        IJ.log("Initial binary attempt...");
         FloatProcessor ip3 = imageAfterSmoothing.getProcessor().duplicate().convertToFloatProcessor();
         ByteProcessor binary1 = binarizeUsingOtsu(ip3, imageManager.exclusionMask); //set exluded regions to white
         ImagePlus binaryImg = new ImagePlus("Initial binary attempt",binary1);
-        binaryImg.show();
-        //imageManager.showScaledUp(binaryImg);
+        //binaryImg.show();
+        imageManager.showScaledUp(binaryImg);
 
         //after binarization step, we can find centroids
+        IJ.log("Generating Voronoi Diagram...");
         CentroidManager cm = new CentroidManager(binaryImg.getProcessor().duplicate());
         ArrayList<double[]> centroids = cm.findCentroids();
+        //inital centroids guess before user corrected voronoi
         ArrayList<double[]> initialCentroidCopy = (ArrayList<double[]>) centroids.clone();
         //set up image for a voronoi diagram
         VoronoiManager vm = new VoronoiManager(originalImgScaled, imageManager.exclusionMask);
         vm.setCentroids(centroids);
         //draw voronoi diagram based on initial guess of the centroids for the fibrils
         vm.initDrawVoronoi();
-        vm.showImg();
+        //vm.showImg();
         //user can add and remove centroids and the voronoi diagram will adjust
         WaitForUserDialog wfud = new WaitForUserDialog("Action Required", "Right click to remove centroids. Left click to add centroids. Click ok when finished.");
         wfud.show();
         if (wfud.escPressed()) return;
 
+        vm.closeImg();
         //get non boundry centroids for later processing
         ArrayList<double[]> allPixels = getAllPixels(ip2);
-        ArrayList<double[]> nonBoundryCentroids = vm.identifyBoundaryFibrils(imageManager.exclusionMask, allPixels);
-        ArrayList<Boolean> isBoundryCentroid = vm.identifyBoundaryFibrilsBoolean(imageManager.exclusionMask, allPixels);
+
 
         //completed voronoi diagram with user approved centroids
         double[][] convertedCentroids = vm.getCentroids().toArray(new double[0][]);
@@ -156,10 +157,11 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         //smooth2.show();
 
         //binarize the smoothed img using Otsu optimal threshold
+        IJ.log("Final binarization attempt...");
         FloatProcessor ip4 = smooth2.getProcessor().duplicate().convertToFloatProcessor();
         ImageProcessor binary2 = binarizeUsingOtsu(ip4, imageManager.exclusionMask);
         ImagePlus binaryImg2 = new ImagePlus("Final binary attempt", binary2);
-        binaryImg2.show();
+        imageManager.showScaledUp(binaryImg2);
 
         //red binary image over original image
         ImageProcessor binary2dup = binary2.duplicate();
@@ -175,15 +177,11 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         OverlayManager.overlayBinaryAttempts(binaryOverlay, binary1, binary2);
         ImagePlus binaryOverlayImg = new ImagePlus("Binarization Overlay", binaryOverlay);
         String binaryOverlayDescription = "Binarization Overlay Description: Green: non-fibrillar to fibrillar; magenta: fibrillar to non-fibrillar; black/ white: unchanged.";
-        // Show the description in a TextWindow
-        //TextWindow textWindow1 = new TextWindow("Binarization Overlay Description", binaryOverlayDescription, 800, 100);
         IJ.log(binaryOverlayDescription);
-        imageManager.showScaledUp(binaryOverlayImg);
+        imageManager.showScaledUp(binaryOverlayImg, true);
         imagesToSave.add(binaryOverlayImg);
 
-        //TODO:  abstract this code into its own class. if centroids over certain number increase thin_inc
         //TODO: need a way to somehow increase decrease this based on centroids number and image size to maximaze results relative to time
-        int thin_inc = 10;
 
         //get fibril pixels from 2 binarization attempt
         ArrayList<double[]> fibrilPixels = getFibrilPixels(binaryImg2.getProcessor().convertToFloatProcessor());
@@ -206,33 +204,33 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         }
 
         //test to see what pixels are being processed by em
-        ImageProcessor pixelsForGmm = imgAfterGausFiltering.getProcessor().duplicate().convertToColorProcessor();
-        OverlayManager.overlayPixels(pixelsForGmm,fibrilPixelsThinned, Color.red.getRGB());
-        ImagePlus t = new ImagePlus("Pixels for gmm", pixelsForGmm);
+//        ImageProcessor pixelsForGmm = imgAfterGausFiltering.getProcessor().duplicate().convertToColorProcessor();
+//        OverlayManager.overlayPixels(pixelsForGmm,fibrilPixelsThinned, Color.red.getRGB());
+//        ImagePlus t = new ImagePlus("Pixels for gmm", pixelsForGmm);
         //t.show();
 
         //EM Stem
+        IJ.log("Fitting Gaussian Mixture Model...");
         GaussianMixtureModel gmm = new GaussianMixtureModel(convertedCentroids.length, fibrilPixelsThinned, centroidsIdxThinned);
         gmm.EM(false, 50);
 
-        ImageProcessor boundryIp = imgAfterGausFiltering.getProcessor();
-
+        //ImageProcessor boundryIp = imgAfterGausFiltering.getProcessor();
         //this is only used to calculate the contour lines but do we need to do this really?
         //double[][][] post_all = gmm.calculatePosterProbabilityMatrixAll(allPixels, boundryIp.getHeight(), boundryIp.getWidth());
 
         //calculate posterior probabilities that each pixel belongs to a fibril
-        double[][] post_fibril = gmm.calculatePosterProbabilityMatrixFibril(fibrilPixels, boundryIp.getHeight(), boundryIp.getWidth());
+        double[][] post_fibril = gmm.calculatePosterProbabilityMatrixFibril(fibrilPixels, imgAfterGausFiltering.getProcessor().getHeight(), imgAfterGausFiltering.getProcessor().getWidth());
 
-        IJ.showStatus("Assigning Clusters");
-        IJ.log("Assigning Clusters");
+        IJ.showStatus("Assigning Clusters...");
+        IJ.log("Assigning Clusters...");
 
         //assign pixels to a fibril based on probabilites that each pixel belongs to a centroid
-        int[] clusterAssignments = assignEachFibrilPixelToFibril(fibrilPixels.size(), convertedCentroids.length, post_fibril, isBoundryCentroid);
+        int[] clusterAssignments = assignEachFibrilPixelToFibril(fibrilPixels.size(), convertedCentroids.length, post_fibril);
 
         //processor setup
         ImageProcessor contour = originalImgScaled.getProcessor().duplicate().convertToColorProcessor();
         ImageProcessor contour_lines = originalImgScaled.getProcessor().duplicate().convertToColorProcessor();
-        ImageProcessor intiVoronoi = originalImgScaled.getProcessor().duplicate().convertToColorProcessor();
+        ImageProcessor correctedVoronoiOverlay = vm.scaledUpProcessor.convertToColorProcessor();
 
         //test to show cluster assignments
 //        ImageProcessor clusterColorsProcessor = imgAfterGausFiltering.getProcessor().duplicate();
@@ -241,8 +239,8 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
 
         //{*}IMAGE PREP
-        IJ.showStatus("Preparing Overlayed Images");
-        IJ.log("Preparing Images");
+        IJ.showStatus("Preparing Overlayed Images...");
+        IJ.log("Preparing Images...");
 
         OverlayManager.overlayCentroids(contour, gmm.getMus(), Color.red.getRGB()); // gmm centroids red
         OverlayManager.overlayCentroids(contour, convertedCentroids, Color.magenta.getRGB()); // voronoi centroids magenta
@@ -253,17 +251,17 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         OverlayManager.overlayCentroids(contour_lines, gmm.getMus(), Color.red.getRGB()); // gmm centroids red
 
 
-        OverlayManager.overlayVoronoi(intiVoronoi, vm.init_voronoi, cyan.getRGB()); //overlay corrected voronoi over initial guess of voronoi
-        OverlayManager.overlayCentroids(intiVoronoi, initialCentroidCopy.toArray(new double[0][]), cyan.getRGB());
-        OverlayManager.overlayVoronoi(intiVoronoi, vm.voronoi, Color.blue.getRGB()); //overlay corrected voronoi over initial guess of voronoi
-        OverlayManager.overlayCentroids(intiVoronoi, convertedCentroids, Color.red.getRGB()); // corrected voronoi centroids
+        OverlayManager.overlayVoronoi(correctedVoronoiOverlay, vm.init_voronoi, cyan.getRGB()); //overlay corrected voronoi over initial guess of voronoi
+        OverlayManager.overlayCentroids(correctedVoronoiOverlay, initialCentroidCopy.toArray(new double[0][]), cyan.getRGB());
+        OverlayManager.overlayVoronoi(correctedVoronoiOverlay, vm.voronoi, Color.blue.getRGB()); //overlay corrected voronoi over initial guess of voronoi
+        OverlayManager.overlayCentroids(correctedVoronoiOverlay, convertedCentroids, Color.red.getRGB()); // corrected voronoi centroids
 
         //shows contour overlays not needed
         ImagePlus overlayImage = new ImagePlus("Overlays", contour);
 
         ImagePlus contourLinesImage = new ImagePlus("Contour Lines", contour_lines);
          //contourLinesImage.show();
-        ImagePlus correctedVoronoiImage = new ImagePlus("Corrected Voronoi", intiVoronoi);
+        ImagePlus correctedVoronoiImage = new ImagePlus("Corrected Voronoi", correctedVoronoiOverlay);
         //imageManager.showScaledUp(contourLinesImage);
         //imageManager.showScaledUp(overlayImage);
         imageManager.showScaledUp(correctedVoronoiImage);
@@ -272,15 +270,18 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         imagesToSave.add(correctedVoronoiImage);
 
 
-        IJ.showStatus("Fitting Ellipses");
-        IJ.log("Fitting Ellipses");
+        IJ.showStatus("Fitting Ellipses...");
+        IJ.log("Fitting Ellipses...");
 
         //gmm centroids or user corrected centroids?
         //TODO: figure this out, test both. right now using vm centroids
         ArrayList<double[]> centroidsFromGmm = convertToArrayList(gmm.getMus());
+        ArrayList<double[]> centroidsFromVoronoi = vm.getCentroids();
+        ArrayList<double[]> nonBoundryCentroids = vm.identifyBoundaryFibrils(imageManager.exclusionMask);
+        ArrayList<Boolean> isBoundryCentroid = vm.identifyBoundaryFibrilsBoolean(imageManager.exclusionMask);
 
-        EllipseFitting ef = new EllipseFitting(originalImgScaled, fibrilPixels, vm.getCentroids() , clusterAssignments, post_fibril, gmm.getComponentProportions() ,  nonBoundryCentroids);
-        ef.fitEllipses(isBoundryCentroid);
+        EllipseFitting ef = new EllipseFitting(originalImgScaled, fibrilPixels, centroidsFromVoronoi , clusterAssignments, post_fibril, gmm.getComponentProportions() ,  nonBoundryCentroids);
+        ef.fitEllipses();
 
         //user can delete ellipses that did not perform well
         WaitForUserDialog wfud2 = new WaitForUserDialog("Action Required", "Left click to remove ellipses. Once finished, click ok.");
@@ -290,6 +291,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         //{*}POST PROCESSING
         IJ.showStatus("Post Processing...");
+        IJ.log("Generating csv files...");
 
         //conversion from pixels to nm
         double nanometers_over_pixels = imageManager.getConversionFactor();
@@ -318,8 +320,10 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         }
 
         String finalImageName = imageName;
+
+        //async handler for selecting a directory so the ui does not freeze up. Only generate csv files and save images if directory is selected
         SwingUtilities.invokeLater(() -> handleCreateDirectory(finalImageName, selectedDirectory -> {
-            // Generate csv files
+
             Path newFolderPath = Paths.get(selectedDirectory);
 
             // create new directory the user selected with folder name equal to image name
@@ -338,24 +342,29 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                     Results_In_Pixels.createNewFile();
                 }
                 FileWriter out = new FileWriter(Results_In_Pixels);
-                CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.withHeader(
-                        "Area (pixels^2)", "Major Radius (pixels)", "Minor Radius (pixels)",
-                        "Angle (degrees)", "Centroid X (pixels)", "Centroid Y (pixels)",
-                        "Covariance XX (pixels^2)", "Covariance XY (pixels^2)", "Covariance YY (pixels^2)",
-                        "Component Proportion"));
 
-                for(Ellipse e : ellipses){
-                    printer.printRecord(formatField(e.postProbArea),
-                            formatField(e.majorRadius),
-                            formatField(e.minorRadius),
-                            formatField(e.angle),
-                            formatField(e.x),
-                            formatField(e.y),
-                            formatField(e.cov[0][0]),
-                            formatField(e.cov[0][1]),
-                            formatField(e.cov[1][1]),
-                            formatField(e.componentProportion));
+                //column attribute of csv file
+                for(String h : pixelCsvHeader){
+                    out.append(h).append(delimiter);
                 }
+                //end of header
+                out.append(newLine);
+
+                //write each row
+                for(Ellipse e : ellipses){
+                    out.append(formatField(e.postProbArea)).append(delimiter);
+                    out.append(formatField(e.majorRadius)).append(delimiter);
+                    out.append(formatField(e.minorRadius)).append(delimiter);
+                    out.append(formatField(e.angle)).append(delimiter);
+                    out.append(formatField(e.x)).append(delimiter);
+                    out.append(formatField(e.y)).append(delimiter);
+                    out.append(formatField(e.cov[0][0])).append(delimiter);
+                    out.append(formatField(e.cov[0][1])).append(delimiter);
+                    out.append(formatField(e.cov[1][1])).append(delimiter);
+                    out.append(formatField(e.componentProportion)).append(newLine);
+
+                }
+
                 out.close();
 
             }catch (Exception e){
@@ -368,15 +377,18 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                     Results_In_Nm.createNewFile();
                 }
                 FileWriter out2 = new FileWriter(Results_In_Nm);
-                CSVPrinter printer = new CSVPrinter(out2, CSVFormat.DEFAULT.withHeader(
-                        "Area (nanometers^2)", "Major Radius (nanometers)", "Minor Radius (nanometers)",
-                        "Aspect Ratio"));
+
+                for(String s : nmCsvHeader){
+                    out2.append(s).append(delimiter);
+                }
+                //end of header
+                out2.append(newLine);
 
                 for(Ellipse e : ellipses){
-                    printer.printRecord(formatField(e.area_nm),
-                            formatField(e.majorRadius_nm),
-                            formatField(e.minorRadius_nm),
-                            formatField(e.aspectRatio_nm));
+                   out2.append(formatField(e.area_nm)).append(delimiter);
+                   out2.append(formatField(e.majorRadius_nm)).append(delimiter);
+                   out2.append(formatField(e.minorRadius_nm)).append(delimiter);
+                   out2.append(formatField(e.aspectRatio_nm)).append(newLine);
                 }
                 out2.close();
 
@@ -390,7 +402,6 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                 imageManager.scaleUp(image);
                 String fileName = image.getTitle();
                 String savePath = newFolderPath.resolve(fileName + ".tiff").toString();
-                //String savePath = newFolderPath + fileName + ".tiff";
                 FileSaver fileSaver = new FileSaver(image);
                 if(fileSaver.saveAsTiff(savePath)){
                     System.out.println("Saved " + fileName);
@@ -409,8 +420,11 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
     }
 
     private static String formatField(double value) {
-        return String.format("%-28.8f", value);
+        return String.format("%.8f", value);
     }
+//    private static String formatField(double value) {
+//        return String.format("%-28.8f", value);
+//    }
 
     public void handleCreateDirectory(String imageName, Consumer<String> callback){
 
@@ -456,6 +470,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
     }
 
 
+    //not used imagej file picker method
     public boolean createDirectory(String path) {
         File directory = new File(path);
 
@@ -496,6 +511,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         java.net.URL url = clazz.getProtectionDomain().getCodeSource().getLocation();
         java.io.File file = new java.io.File(url.toURI());
         System.setProperty("plugins.dir", file.getAbsolutePath());
+        DEBUG_MODE = true;
 
         // start ImageJ
         new ImageJ();
@@ -503,8 +519,8 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         // open the Clown sample
         //TEM_4.jpg
         //L3915_3c_BA190R-1.tif
-        ImagePlus image = IJ.openImage("/Users/tywatson/development/repos/Rego-Imagej-pluggin/testimages/Adventitia_RIRII.tif");
-        //ImagePlus image = IJ.openImage("C:\\Users\\Ty Watson\\Downloads\\testimages\\Adventitia_RIRII.tif");
+       // ImagePlus image = IJ.openImage("/Users/tywatson/development/repos/Rego-Imagej-pluggin/testimages/Adventitia_RIRII.tif");
+        ImagePlus image = IJ.openImage("C:\\Users\\tywat\\Downloads\\Adventitia_RIRII.tif");
         image.show();
         // run the plugin
         IJ.runPlugIn(clazz.getName(), "");
