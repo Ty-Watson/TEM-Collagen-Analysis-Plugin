@@ -16,7 +16,7 @@
 
 	<groupId>edu.lsu.be</groupId>
 	<artifactId>tem_collagen_analysis_plugin</artifactId>
-	<version>0.1.1</version>
+	<version>0.1.2</version>
 
 	<name>TEM-Collagen-Analysis-Plugin</name>                                               <!-- FIXME: Your project name here          -->
 	<description>An imageJ plugin to analyze collagen fibrils</description> <!-- FIXME: Your project description here   -->
