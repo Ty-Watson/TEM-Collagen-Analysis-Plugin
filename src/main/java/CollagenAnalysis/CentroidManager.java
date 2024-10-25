@@ -61,6 +61,10 @@ public class CentroidManager {
 
         ResultsTable rt = new ResultsTable();
         int measurements = Measurements.CENTROID;
+
+        // Explicitly set the threshold to 0-0 to treat only pixels with value 0 as foreground
+        maxima.setThreshold(0, 0, ImageProcessor.NO_LUT_UPDATE);  // Setting threshold to 0-0
+
         ParticleAnalyzer pa = new ParticleAnalyzer(ParticleAnalyzer.SHOW_NONE, measurements, rt, 0, Double.POSITIVE_INFINITY);
         int numberOfMaxima = countNonZeroPixels(maxima);
 
@@ -139,6 +143,8 @@ public class CentroidManager {
             ResultsTable rt = new ResultsTable();
             int measurements = Measurements.CENTROID;
 
+            // Explicitly set the threshold to 0-0 to treat only pixels with value 0 as foreground
+            maxima.setThreshold(0, 0, ImageProcessor.NO_LUT_UPDATE);  // Setting threshold to 0-0
             ParticleAnalyzer pa = new ParticleAnalyzer(ParticleAnalyzer.SHOW_NONE, measurements, rt, 0, Double.POSITIVE_INFINITY);
             int numberOfMaxima = countNonZeroPixels(maxima);
             NumberOfCentroidsForEachSigmaIndex[i] = numberOfMaxima;
