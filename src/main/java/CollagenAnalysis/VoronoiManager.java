@@ -9,16 +9,10 @@ import ij.ImagePlus;
 import ij.gui.ImageCanvas;
 import ij.process.ColorProcessor;
 import ij.process.ImageProcessor;
-
-import smile.classification.KNN;
-import smile.neighbor.KDTree;
-import smile.neighbor.Neighbor;
-
 import java.awt.*;
 import java.awt.event.AWTEventListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.Path2D;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Stream;
@@ -39,7 +33,6 @@ public class VoronoiManager {
 
         setCanvasEvents();
     }
-    private ImagePlus imp;
     public ImagePlus scaledUpImage;
     //have to have processor here for scaled up image because ip.reset only works with instatiated processor rather than imageplus.getprocessor()
     //so in order to have the image reset and draw the updated changes, have to call imageprocessor.reset
@@ -258,41 +251,12 @@ public class VoronoiManager {
         int h = imageProcessor.getHeight() * SCALE;
         int w = imageProcessor.getWidth() * SCALE;
         scaledUpProcessor = imageProcessor.resize(w, h);
-        scaledUpImage = new ImagePlus("Scaled up Voronoi Image", scaledUpProcessor);
+        scaledUpImage = new ImagePlus("Voronoi Image", scaledUpProcessor);
     }
 
     private void setCanvasEvents(){
         canvas = scaledUpImage.getCanvas();
 
-//        canvas.addMouseListener(new MouseAdapter() {
-//            @Override
-//            public void mouseClicked(MouseEvent e) {
-//
-//                if(e.getButton() == MouseEvent.BUTTON1){   //left click add centroid
-//                    int clickX = canvas.offScreenX(e.getX());
-//                    int clickY = canvas.offScreenY(e.getY());
-//
-//                    double[] newCentroid = new double[]{ clickX, clickY};
-//
-//                    centroids.add(newCentroid);
-//                    ip.reset();
-//                    drawVoronoi();
-//                }
-//                else if(e.getButton() == MouseEvent.BUTTON3){ //right click remove centroid
-//                    int clickX = canvas.offScreenX(e.getX());
-//                    int clickY = canvas.offScreenY(e.getY());
-//
-//                    // Find and remove the nearest centroid to the click
-//                    double[] nearestCentroid = findNearestCentroid(centroids, clickX, clickY);
-//                    centroids.remove(nearestCentroid);
-//                    ip.reset();
-//                    drawVoronoi();
-//                }
-//
-//
-//            }
-//
-//        });
         // Add an AWTEventListener to globally intercept mouse events
         Toolkit.getDefaultToolkit().addAWTEventListener(new AWTEventListener() {
             @Override
@@ -344,50 +308,6 @@ public class VoronoiManager {
             }
         });
 
-    }
-
-
-    private boolean belongsToCell(Point pixel, Point centroid){
-        Set<Vertex> verticesForVoronoiCell = cells.get(centroid);
-        List<Point> vertices = new ArrayList<>();
-        Path2D.Double path = new Path2D.Double();
-
-        for(Vertex vertex : verticesForVoronoiCell){
-            Point point = vertex.getLocation();
-            vertices.add(point);
-        }
-        path.moveTo(vertices.get(0).x, vertices.get(0).y);
-        vertices.stream().skip(1).forEach(v -> path.lineTo(v.x, v.y));
-        path.closePath(); //
-        return path.contains(pixel.x, pixel.y);
-    }
-    public double[] computeIntensities(List<Double> pixelIntensities, double[] distances, int[] indices, int numCentroids) {
-        Map<Integer, List<Double>> centroidDistances = new HashMap<>();
-        Map<Integer, List<Double>> centroidIntensities = new HashMap<>();
-
-        // Collect distances and intensities for each centroid
-        for (int i = 0; i < indices.length; i++) {
-            centroidDistances.computeIfAbsent(indices[i], k -> new ArrayList<>()).add(distances[i]);
-            centroidIntensities.computeIfAbsent(indices[i], k -> new ArrayList<>()).add(pixelIntensities.get(i));
-        }
-
-        double[] charCellIntensity = new double[numCentroids];
-        // Calculate the mean intensity for pixels within the 5th percentile distance for each centroid
-        centroidDistances.forEach((centroid, distList) -> {
-            double fifthPercentile = percentile(distList, .05);
-            List<Double> intensities = centroidIntensities.get(centroid);
-            double sum = 0;
-            int count = 0;
-            for (int i = 0; i < distList.size(); i++) {
-                if (distList.get(i) < fifthPercentile) {
-                    sum += intensities.get(i);
-                    count++;
-                }
-            }
-            charCellIntensity[centroid] = (count > 0) ? sum / count : Double.NaN; // Compute mean
-        });
-
-        return charCellIntensity;
     }
     public double[] computeIntensities2(List<Double> pixelIntensities, double[] nearest_centroid_dist_all, int[] nearest_centroid_idx_all, ImageProcessor ip, ArrayList<double[]> centroids) {
 // The result array
@@ -442,18 +362,6 @@ public class VoronoiManager {
                 .average()
                 .orElse(Double.NaN); // handle empty list case
     }
-
-    private double percentile(List<Double> values, double percentile) {
-        Collections.sort(values);
-        int index = (int) Math.ceil(percentile
-                * values.size());
-        return values.get(index - 1);
-    }
-
-    private double distance(Point p1, Point p2) {
-        return Math.sqrt((p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y));
-    }
-
     public void SetNearestCentroidIndices(int[] nearestCentroidIndices){
         this.nearestCentroidIndices = nearestCentroidIndices;
     }
@@ -526,40 +434,10 @@ public class VoronoiManager {
 
         }
         return isBoundaryCentroid;
-//
     }
-    private int[] nearestNeighborSearch(ArrayList<double[]> pixels, List<Vertex> voronoiVertices) {
-
-
-        // Convert the list of pixels to an array for KDTree
-        double[][] pixelArray = pixels.toArray(new double[0][]);
-
-        // Create a KD-tree for the pixels
-        KDTree<double[]> pixelTree = KDTree.of(pixelArray);
-
-        // Perform the nearest neighbor search for Voronoi vertices
-        int[] nearestPixelIndices = new int[voronoiVertices.size()];
-        for (int i = 0; i < voronoiVertices.size(); i++) {
-            Point vertexLocationPoint = voronoiVertices.get(i).getLocation();
-            double[] vertexLocation = new double[]{vertexLocationPoint.x, vertexLocationPoint.y};
-            Neighbor<double[], double[]> nearest = pixelTree.nearest(vertexLocation);
-            nearestPixelIndices[i] = nearest.index;
-        }
-
-        // Output or use the nearest pixel indices
-        for (int i = 0; i < nearestPixelIndices.length; i++) {
-            System.out.println("Voronoi Vertex " + i + " nearest pixel index: " + nearestPixelIndices[i]);
-        }
-        return nearestPixelIndices;
-    }
-
     public  void applyExclusionMask() {
         int width = scaledUpProcessor.getWidth();
         int height = scaledUpProcessor.getHeight();
-
-//        if (exclusionMask.length != height || exclusionMask[0].length != width) {
-//            throw new IllegalArgumentException("Exclusion mask size does not match image dimensions.");
-//        }
 
         // Iterate over all pixels in the image
         for (int y = 0; y < height; y++) {
@@ -575,5 +453,4 @@ public class VoronoiManager {
             }
         }
     }
-
 }

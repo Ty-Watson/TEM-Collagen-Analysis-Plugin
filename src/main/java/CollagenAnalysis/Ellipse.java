@@ -12,24 +12,19 @@ public class Ellipse {
     public double x;
 
     public double y;
-
     public double aspectRatio;
-    public double aspectRatio_nm;
     public double area;
     public double postProbArea;
     public double area_nm;
     public double angle;
     public double majorRadius;
     public double minorRadius;
-
     public double majorRadius_nm;
     public double minorRadius_nm;
     double[] mu;
     double[][] cov;
-
     double componentProportion;
     Polygon ellipsePolygon;
-
 
     public void generateEllipsePolygon() {
 
@@ -61,7 +56,6 @@ public class Ellipse {
         // Scale radii
         majorRadius *= scale;
         minorRadius *= scale;
-        aspectRatio *= scale;
 
         // Area scales by the square of the scale factor
         area *= Math.pow(scale, 2);
@@ -91,7 +85,6 @@ public class Ellipse {
         area_nm = postProbArea * Math.pow(nanometers_over_pixels, 2);
         majorRadius_nm = majorRadius * nanometers_over_pixels;
         minorRadius_nm = minorRadius * nanometers_over_pixels;
-        aspectRatio_nm = aspectRatio * nanometers_over_pixels;
     }
 
 }

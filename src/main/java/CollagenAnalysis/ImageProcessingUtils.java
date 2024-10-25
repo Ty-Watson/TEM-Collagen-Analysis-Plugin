@@ -30,14 +30,13 @@ public class ImageProcessingUtils {
         }
         return arrayList;
     }
-    public static double[] computeFibrilArea(double[][] postFibril, int scale, int fibrilCount) {
+    public static double[] computeFibrilArea(double[][] postFibril, int fibrilCount) {
         double[] areaPix2 = new double[fibrilCount];
 
         for (int i = 0; i < fibrilCount; i++) {
             for(int j = 0; j < postFibril[i].length; j++) {
                 areaPix2[i] += postFibril[i][j];
             }
-            //areaPix2[i] *= Math.pow(scale, 2);
         }
         return areaPix2;
     }
@@ -176,38 +175,6 @@ public class ImageProcessingUtils {
         ImagePlus filteredImg = new ImagePlus("Filtered Img",ip);
 //        filteredImg.show();
         return filteredImg;
-    }
-
-    public static ByteProcessor binarizeUsingOtsu(FloatProcessor fp) {
-        // Convert FloatProcessor to ByteProcessor for histogram calculation
-        ByteProcessor bp = fp.duplicate().convertToByteProcessor();
-       // ByteProcessor bp2 = bp.duplicate().convertToByteProcessor();
-
-        // Calculate histogram
-        int[] histogram = bp.getHistogram();
-
-        // Calculate Otsu's threshold
-        AutoThresholder thresholder = new AutoThresholder();
-        int otsuThreshold = thresholder.getThreshold(AutoThresholder.Method.Otsu, histogram);
-
-        // Apply Otsu's threshold to the FloatProcessor
-        for (int y = 0; y <bp.getHeight(); y++) {
-            for (int x = 0; x < bp.getWidth(); x++) {
-                float value =bp.getPixelValue(x, y);
-                if(value == 0){
-                    bp.setf(x, y, 255.0f);
-                    continue;
-                }
-
-                if (value <= otsuThreshold) {
-                    bp.setf(x, y, 0.0f); // Set pixels below the threshold to 0
-                }
-                else {
-                    bp.setf(x, y, 255.0f); // Set pixels above the threshold to 255
-                }
-            }
-        }
-        return bp;
     }
     public static ByteProcessor binarizeUsingOtsu(FloatProcessor fp, boolean[][] exclusionMask) {
         // Convert FloatProcessor to ByteProcessor for histogram calculation

@@ -294,43 +294,7 @@ public  class OverlayManager {
             }
         }
     }
-    public static void drawEllipsesOnImage(ImageProcessor ip, ArrayList<double[]> xEllipses, ArrayList<double[]> yEllipses, int nCentroid) {
-        if (xEllipses.size() != yEllipses.size()) {
-            throw new IllegalArgumentException("The number of x and y ellipse coordinate arrays must match.");
-        }
 
-        ip.setColor(Color.BLUE);
-
-        // Iterate over all ellipses
-        for (int i = 0; i < xEllipses.size(); i++) {
-            double[] xCoords = xEllipses.get(i);
-            double[] yCoords = yEllipses.get(i);
-
-            if (xCoords.length != yCoords.length || xCoords.length != DEGREES) {
-                throw new IllegalArgumentException("Each ellipse coordinate array must have the same length and match the expected number of degrees.");
-            }
-
-            int[] xPoints = new int[DEGREES];
-            int[] yPoints = new int[DEGREES];
-
-            // Prepare the coordinates for drawing
-            for (int j = 0; j < DEGREES; j++) {
-                xPoints[j] = (int) Math.round(xCoords[j]);
-                yPoints[j] = (int) Math.round(yCoords[j]);
-            }
-
-            // Create a polygon from the ellipse points
-            Polygon p = new Polygon(xPoints, yPoints, DEGREES);
-            ip.drawPolygon(p);
-        }
-
-    }
-    public static void drawEllipsesOnImage(ImageProcessor ip, ArrayList<Polygon> ellipses){
-        ip.setColor(Color.blue);
-        for(Polygon p : ellipses){
-            ip.drawPolygon(p);
-        }
-    }
     public static void overlayColoredClusterAssignments(ImageProcessor clusterColorsProcessor,ArrayList<double[]> fibrilPixels, int[] clusterAssignments){
         Color[] clusterColors = new Color[] {
                 new Color(255, 0, 0),      // Red

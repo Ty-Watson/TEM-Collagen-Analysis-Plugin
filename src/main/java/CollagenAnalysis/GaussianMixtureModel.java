@@ -1,33 +1,24 @@
 package CollagenAnalysis;
 
 import ij.IJ;
-import ij.ImagePlus;
-import ij.gui.ProgressBar;
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.RealMatrix;
-import org.scijava.ui.StatusBar;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.stream.IntStream;
 
 public class GaussianMixtureModel {
     private final double regularizationValue = .1;
-
     private final int centroidLength;
-    private double[][] centroids;
     private final double[][] fibrilPixelsThinned;
     private double[] centroidsIdxThinned;
     private double[][] mus;
     private double[][][] covariance;
-
     // Initialize a matrix to store the probability density function (PDF) values
     public double[][] pdf_values;
     // Initialize a matrix to store the posterior probabilities (responsibilities) that each pixel belongs to every centroid
     private double[][] p;
-
     public double[] componentProportions;
-
     private int[] numberOfPixelsForEachCentroid;
     private ArrayList<double[]> fibrilPixelsForThisCentroid = new ArrayList<double[]>();
 
@@ -127,8 +118,6 @@ public class GaussianMixtureModel {
         // M step: Accumulate sums for updating mu
         IntStream.range(0, centroidLength).parallel().forEach(i -> {
             double[][] cov = new double[2][2];
-//            double[] muForCentroid = mus.get(i);
-//            double[][] covForCentroid = covariance.get(i);
 
             for(int j = 0; j < fibrilPixelsThinned.length; j++){
                 sumP[i] += p[i][j];
@@ -192,8 +181,6 @@ public class GaussianMixtureModel {
         for(int i = 0; i < centroidLength; i++){
 
             double[][] cov = new double[2][2];
-//            double[] muForCentroid = mus.get(i);
-//            double[][] covForCentroid = covariance.get(i);
 
             for(int j = 0; j < fibrilPixelsThinned.length; j++){
                 sumP[i] += p[i][j];
@@ -262,12 +249,6 @@ public class GaussianMixtureModel {
 
             }
 
-            //if there are no pixels for this centroid (maybe the user added a centroid in the excluded region) do not process this centroid
-            //because it will inject NAN for cov matrix
-//            if(fibrilPixelsForThisCentroid.isEmpty()){
-//                continue;
-//            }
-
             //  sums for the current centroid
             double xsum = 0;
             double ysum = 0;
@@ -288,12 +269,7 @@ public class GaussianMixtureModel {
             double varx = 0;
             double vary = 0;
             double covxy = 0;
-//            for(int t = 0; t < numberOfPixelsForEachCentroid[i]; t++){
-//
-//                varx  += Math.pow(fibrilPixelsForThisCentroid.get(t)[0] - mus.get(i)[0], 2);
-//                vary  += Math.pow(fibrilPixelsForThisCentroid.get(t)[1] - mus.get(i)[1], 2);
-//                covxy  += (fibrilPixelsForThisCentroid.get(t)[0] - mus.get(i)[0]) *  (fibrilPixelsForThisCentroid.get(t)[1] - mus.get(i)[1]);
-//            }
+
             // Calculate variances and covariance for the current centroid
             for(double[] pixel : fibrilPixelsForThisCentroid){
                 double dx = pixel[0] - mu[0];
@@ -332,13 +308,6 @@ public class GaussianMixtureModel {
                 pdf_values[i][j] = mvnpdf(fibrilPixelsThinned[j], muForCentroid,covForCentroid);
             }
         });
-//        for(int i = 0; i < centroidLength; i++){
-//            double[] muForCentroid = mus.get(i);
-//            double[][] covForCentroid = covariance.get(i);
-//            for(int j = 0; j < fibrilPixelsThinned.length; j++){
-//                pdf_values[i][j] = mvnpdf(fibrilPixelsThinned[j], muForCentroid,covForCentroid);
-//            }
-//        }
     }
     private void initPosteriorProbabilityMatrix(){
         for(int j = 0; j < fibrilPixelsThinned.length; j++){
@@ -372,9 +341,6 @@ public class GaussianMixtureModel {
                 pdf_values[i][j] = mvnpdf(allPixels.get(j), mu, sigma);
             }
         });
-
-        // Calculate the total probability for each pixel over all centroids
-        //Arrays.parallelSetAll(totalProbabilities, i -> 0.0); // Initialize with zeros using parallel operation
 
         IntStream.range(0, numCentroids).parallel().forEach(i -> {
             double[] mu = mus[i];
@@ -519,27 +485,8 @@ public class GaussianMixtureModel {
             return result;
         }
 
-
-//        try{
-//            MultivariateNormalDistribution md = new MultivariateNormalDistribution(mu, sigma);
-//            double pdf_value = md.density(x);
-//            return pdf_value;
-//        } catch(Exception e){
-//            System.out.printf("[*] pdf calculation failed for mu: [%f, %f] and covariance: [[%f, %f][%f, %f]]", mu[0], mu[1], sigma[0][0], sigma[0][1], sigma[1][0], sigma[1][1]);
-//            return  0;
-//        }
-
-    }
-
-    public double[][] getPosteriorProbabilityMatrix() {
-        return p;
     }
     public double[][] getMus(){return mus;}
-
-    public double[][][] getCovariance() {
-        return covariance;
-    }
-
     public double[] getComponentProportions() {
         return componentProportions;
     }

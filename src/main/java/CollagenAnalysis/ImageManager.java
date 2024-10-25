@@ -26,16 +26,13 @@ public class ImageManager {
     private int height;
     private int width;
     private double  conversionFactor;
-
     public boolean[][] exclusionMask;
-    private boolean exitLoop = false;
 
     public ImageManager(ImagePlus imp){
         this.scaledUpOriginalProcessor = imp.getProcessor();
         this.ip = imp.getProcessor();
         this.height = ip.getHeight();
         this.width = ip.getWidth();
-        checkProcessor(imp);
     }
     public void scaleDown(){
         while(height >= 1000 || width >= 1000){
@@ -49,7 +46,6 @@ public class ImageManager {
     }
     public void scaleUp(ImagePlus imp){
         ImageProcessor imageProcessor = imp.getProcessor().duplicate();
-        //drawExcludedRegions(imageProcessor);
         int h = imageProcessor.getHeight() * scale;
         int w = imageProcessor.getWidth() * scale;
         imp.setProcessor(imageProcessor.resize(w, h));
@@ -57,7 +53,6 @@ public class ImageManager {
     public void showScaledUp(ImagePlus imp){
         if(DEBUG_MODE){
             ImageProcessor imageProcessor = imp.getProcessor().duplicate();
-            //drawExcludedRegions(imageProcessor);
             int h = imageProcessor.getHeight() * scale;
             int w = imageProcessor.getWidth() * scale;
             imageProcessor = imageProcessor.resize(w, h);
@@ -68,7 +63,6 @@ public class ImageManager {
     public void showScaledUp(ImagePlus imp, boolean override){
 
         ImageProcessor imageProcessor = imp.getProcessor().duplicate();
-        //drawExcludedRegions(imageProcessor);
         int h = imageProcessor.getHeight() * scale;
         int w = imageProcessor.getWidth() * scale;
         imageProcessor = imageProcessor.resize(w, h);
@@ -99,7 +93,6 @@ public class ImageManager {
 
         Line line = (Line) imp.getRoi();
         System.out.println("Line Coordinates: X1 = " + line.x1d + ", Y1 = " + line.y1d + ", X2 = " + line.x2d + ", Y2 = " + line.y2d);
-        //double lengthInPixels = line.getLength();
         double lengthInPixels = calculateDistance(line.x1d, line.x2d, line.y1d, line.y2d);
 
         // Ask the user to enter the real-world length in nanometers
@@ -119,7 +112,6 @@ public class ImageManager {
 
     }
     public ImageProcessor excludeRegions(){
-        //GlobalKeyListener.addGlobalKeyListener();
         if (!(ip instanceof ByteProcessor)) {
             ip = ip.convertToByteProcessor();
         }
@@ -140,7 +132,6 @@ public class ImageManager {
         canvas.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                //GlobalKeyListener.addGlobalKeyListener();
                 if (e.getKeyCode() == KeyEvent.VK_A) {
                     addPolygonToRoiManager(impExt, roiManager);
                 }
@@ -211,22 +202,6 @@ public class ImageManager {
             IJ.log("No valid polygon to add.");
         }
     }
-    public void drawExcludedRegions(ImageProcessor ip){
-        for (int y = 0; y < ip.getHeight(); y++) {
-            for (int x = 0; x < ip.getWidth(); x++) {
-                if (exclusionMask[x][y]) {
-                    ip.putPixelValue(x, y, 0);
-                }
-            }
-        }
-    }
-    private void checkProcessor(ImagePlus imp){
-//        if(!(ip instanceof ByteProcessor)){
-//            ip = ip.convertToByte(true);
-//            imp.setProcessor(ip);
-//        }
-    }
-
     public double getConversionFactor() {
         return conversionFactor;
     }

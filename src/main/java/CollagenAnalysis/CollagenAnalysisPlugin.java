@@ -43,11 +43,6 @@ import static java.awt.Color.cyan;
  */
 public class CollagenAnalysisPlugin implements PlugInFilter {
     protected ImagePlus imp;
-    // plugin parameters
-    public double value;
-    public String name;
-    private double[] nearestCentroidDistances;
-
     @Override
     public int setup(String arg, ImagePlus image) {
         if (arg.equals("about")) {
@@ -215,7 +210,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         gmm.EM(false, 50);
 
         //ImageProcessor boundryIp = imgAfterGausFiltering.getProcessor();
-        //this is only used to calculate the contour lines but do we need to do this really?
+        //this is only used to calculate the contour lines but excluding this for right now, takes too much processing
         //double[][][] post_all = gmm.calculatePosterProbabilityMatrixAll(allPixels, boundryIp.getHeight(), boundryIp.getWidth());
 
         //calculate posterior probabilities that each pixel belongs to a fibril
@@ -344,8 +339,14 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                 FileWriter out = new FileWriter(Results_In_Pixels);
 
                 //column attribute of csv file
-                for(String h : pixelCsvHeader){
-                    out.append(h).append(delimiter);
+                for(int i = 0;i < pixelCsvHeader.length; i++){
+                    //do not add comma if it is the last header in the list
+                    if(i < pixelCsvHeader.length - 1){
+                        out.append(pixelCsvHeader[i]).append(delimiter);
+                    }
+                    else{
+                        out.append(pixelCsvHeader[i]);
+                    }
                 }
                 //end of header
                 out.append(newLine);
@@ -377,9 +378,15 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                     Results_In_Nm.createNewFile();
                 }
                 FileWriter out2 = new FileWriter(Results_In_Nm);
-
-                for(String s : nmCsvHeader){
-                    out2.append(s).append(delimiter);
+                //header for nm file
+                for(int i = 0;i < nmCsvHeader.length; i++){
+                    //do not add comma if it is the last header in the list
+                    if(i < nmCsvHeader.length - 1){
+                        out2.append(nmCsvHeader[i]).append(delimiter);
+                    }
+                    else{
+                        out2.append(nmCsvHeader[i]);
+                    }
                 }
                 //end of header
                 out2.append(newLine);
@@ -388,7 +395,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                    out2.append(formatField(e.area_nm)).append(delimiter);
                    out2.append(formatField(e.majorRadius_nm)).append(delimiter);
                    out2.append(formatField(e.minorRadius_nm)).append(delimiter);
-                   out2.append(formatField(e.aspectRatio_nm)).append(newLine);
+                   out2.append(formatField(e.aspectRatio)).append(newLine);
                 }
                 out2.close();
 
@@ -422,10 +429,6 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
     private static String formatField(double value) {
         return String.format("%.8f", value);
     }
-//    private static String formatField(double value) {
-//        return String.format("%-28.8f", value);
-//    }
-
     public void handleCreateDirectory(String imageName, Consumer<String> callback){
 
         boolean validDirectory = false;
@@ -516,11 +519,10 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         // start ImageJ
         new ImageJ();
 
-        // open the Clown sample
         //TEM_4.jpg
         //L3915_3c_BA190R-1.tif
-       // ImagePlus image = IJ.openImage("/Users/tywatson/development/repos/Rego-Imagej-pluggin/testimages/Adventitia_RIRII.tif");
-        ImagePlus image = IJ.openImage("C:\\Users\\tywat\\Downloads\\Adventitia_RIRII.tif");
+        ImagePlus image = IJ.openImage("/Users/tywatson/development/repos/Rego-Imagej-pluggin/testimages/Adventitia_RIRII.tif");
+        //ImagePlus image = IJ.openImage("C:\\Users\\tywat\\Downloads\\Adventitia_RIRII.tif");
         image.show();
         // run the plugin
         IJ.runPlugIn(clazz.getName(), "");

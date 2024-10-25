@@ -3,15 +3,13 @@ package CollagenAnalysis;
 import ij.ImagePlus;
 import ij.gui.ImageCanvas;
 import ij.process.ImageProcessor;
-import ij.util.ArrayUtil;
 import org.apache.commons.math3.linear.*;
 
 import java.awt.*;
-import java.awt.event.AWTEventListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
-import java.util.Arrays;
+
 
 import static CollagenAnalysis.Constants.SCALE;
 import static CollagenAnalysis.Constants.pointSize;
@@ -36,7 +34,7 @@ public class EllipseFitting {
     private ArrayList<Double> angle_of_major_axis = new ArrayList<Double>();
 
     ArrayList<double[]> nonboundryCentroids = new ArrayList<>();
-    ArrayList<Boolean> isBoundryCentroid = new ArrayList<>();
+
     private double[][] post_fibril;
 
     //scaled up image
@@ -58,7 +56,6 @@ public class EllipseFitting {
         this.cluster_idx = cluster_idx;
         this.post_fibril = post_fibril;
         this.componentProportion = componentProportion;
-        //this.isBoundryCentroid = isBoundryCentroid;
         this.nonboundryCentroids = nonBoundryCentroids;
         setImageAndProcessors(imp);
         ip.snapshot();
@@ -75,13 +72,6 @@ public class EllipseFitting {
         this.imp = new ImagePlus("Ellipse Fitting", ip);
     }
 
-    private static double[] createThetaArray() {
-        double[] theta = new double[361];
-        for (int i = 0; i <= 360; i++) {
-            theta[i] = Math.toRadians(i);
-        }
-        return theta;
-    }
 
     public  void fitEllipses() {
         //recalculate these when user deletes ellipse
@@ -96,7 +86,8 @@ public class EllipseFitting {
 
         util.calculateMuAndCovarianceForEachFibril(fibrilPixels, centroids, cluster_idx);
         util.validateCovariance(test);
-        double[] areaForEachFibril = computeFibrilArea(post_fibril, 2, centroids.size());
+
+        double[] areaForEachFibril = computeFibrilArea(post_fibril, centroids.size());
 
         ArrayList<double[][]> covarianceForEachFibril = util.covarianceForEachFibril;
         //ArrayList<RealMatrix> covariance = util.covariance;
@@ -130,20 +121,17 @@ public class EllipseFitting {
                 double majorRadius = 2 * Math.sqrt(Math.max(eigenValues[0], eigenValues[1])); // semi-major radius
                 double minorRadius = 2 * Math.sqrt(Math.min(eigenValues[0], eigenValues[1])); // semi-minor radius
 
-                // Calculate the area of the ellipse
+                // Calculate the area of the ellipse. using postProbArea in results
                 double area = Math.PI * majorRadius * minorRadius;
-                e.area = area;
+                e.area = area; //not used in results. Just to compare ellipse area with fibril area (should be similar)
                 e.postProbArea = areaForEachFibril[i];
                 e.majorRadius = majorRadius;
                 e.minorRadius = minorRadius;
                 e.aspectRatio = majorRadius / minorRadius;
                 area_pix.add(area);
 
-
                 // Store the radius information
                 radius_pix.add(new double[]{majorRadius, minorRadius}); // Storing full diameter for reference
-
-
 
                 double[] xEllipse = new double[DEGREES];
                 double[] yEllipse = new double[DEGREES];
@@ -172,48 +160,15 @@ public class EllipseFitting {
                 double angle = Math.atan2(eigenVector[1], eigenVector[0]);
                 e.angle = Math.toDegrees(angle);
                 angle_of_major_axis.add(Math.toDegrees(angle));
-                // Print the radii and area
+
+                //generate the ellipse that will be shown on the image for the current ellipse
                 e.generateEllipsePolygon();
                 fibrilEllipses.add(e);
                 System.out.println("Ellipse " + i + ": Major Radius = " + majorRadius + ", Minor Radius = " + minorRadius + ", Area = " + area + ", Angle = " + angle);
-               // System.out.println("NonBoundryCentroidCount: " + nonboundryCentroids.size());
-                //System.out.println("all centroids: " + centroids.size());
-
-
-
-//            System.out.printf("Ellipse %d coordinates (x, y):\n", i);
-//            for (int j = 0; j < DEGREES; j++) {
-//                System.out.printf("[%f, %f]\n", xEllipse[j], yEllipse[j]);
-//            }
             }
 
         }
         drawEllipses();
-    }
-
-    private void generateEllipsePolygons(){
-        // Iterate over all ellipses
-        for (int i = 0; i < xEllipses.size(); i++) {
-            double[] xCoords = xEllipses.get(i);
-            double[] yCoords = yEllipses.get(i);
-
-            if (xCoords.length != yCoords.length || xCoords.length != DEGREES) {
-                throw new IllegalArgumentException("Each ellipse coordinate array must have the same length and match the expected number of degrees.");
-            }
-
-            int[] xPoints = new int[DEGREES];
-            int[] yPoints = new int[DEGREES];
-
-            // Prepare the coordinates for drawing
-            for (int j = 0; j < DEGREES; j++) {
-                xPoints[j] = (int) Math.round(xCoords[j]);
-                yPoints[j] = (int) Math.round(yCoords[j]);
-            }
-
-            // Create a polygon from the ellipse points
-            Polygon p = new Polygon(xPoints, yPoints, DEGREES);
-            ellipses.add(p);
-        }
     }
 
     private void drawEllipses(){
@@ -296,42 +251,7 @@ public class EllipseFitting {
         // Update the display to show the reset image
         imp.updateAndDraw();
     }
-
-    private double[] findNearestEllipseCentroid(int clickX, int clickY){
-        double[] nearest = null;
-        double minDistance = Double.MAX_VALUE;
-
-        for(Ellipse e : fibrilEllipses){
-            double distance = Math.sqrt(Math.pow(e.x - clickX, 2) + Math.pow(e.y - clickY, 2));
-            if (distance < minDistance) {
-                minDistance = distance;
-                nearest = new double[]{e.x, e.y};
-            }
-        }
-        return nearest;
-    }
-
-
-
-    public ArrayList<double[]> getxEllipses() {
-        return xEllipses;
-    }
-
-    public ArrayList<double[]> getyEllipses() {
-        return yEllipses;
-    }
-
-    public ArrayList<Double> getAngle_of_major_axis() {
-        return angle_of_major_axis;
-    }
-
     public ImagePlus getImage(){
         return imp;
-    }
-
-
-
-    public ArrayList<double[]> getRadius_pix() {
-        return radius_pix;
     }
 }
