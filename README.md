@@ -88,16 +88,16 @@ mvn clean package
 ```
 
 <h2>Plugin Walkthrough</h2>
-<p>1. Open an the image you want to process in ImageJ (file > open)</p>
-<p>2. Find the Collagen Analysis plugin in the Plugins menu and click on it</p>
-<p>3. Draw a line for the scale bar then click ok on the dialog box</p>
-<p>4. Enter how long the line is in nanometers so the conversion factor can be set</p>
-<p>5. Read the instructions and click ok to start excluding regions from the imgae. Click in the image with the extended borders. If there are regions that need to be excluded from processing, then draw a polygon around the region you want to exclude then click a on you keyboard to exclude the region</p>
-<p>6. When finished excluding regions in the image, press escape on your keyboard</p>
-<p>7. Once the voronoi diagram is generated, right click on centroids that did not perform well to delete them. Left click areas where centroids need to be added. Once you are finished with editing the voronoi image, click ok in the dialog box</p>
-<p>8. Once the image with the ellipses have been generated, left click on any ellipses that did not perform well to delete them. When you are finshed, press ok on the dialog box</p>
-<p>9. Then, a file picker will prompt you to pick a directory to save the generated images and csv files. The folder name will be the name of the image you are processing</p>
-<p>10. Look in the directory you specified to save the images to see the results</p>
+<p>1. Open an the image you want to process in ImageJ (file > open).</p>
+<p>2. Find the Collagen Analysis plugin in the Plugins menu and click on it.</p>
+<p>3. Draw a line for the scale bar then click ok on the dialog box.</p>
+<p>4. Enter how long the line is in nanometers so the conversion factor can be set.</p>
+<p>5. Read the instructions in the dialog box to start excluding regions from the imgae. Click in the image with the extended borders. If there are regions that need to be excluded from processing, then draw a polygon around the region you want to exclude then click a on you keyboard to exclude the region. Once you are finished, click ok in the dialog box.</p>
+<p>6. When finished excluding regions in the image, press escape on your keyboard.</p>
+<p>7. Once the voronoi diagram is generated, right click on centroids that did not perform well to delete them. Left click areas where centroids need to be added. Once you are finished with editing the voronoi image, click ok in the dialog box.</p>
+<p>8. Once the image with the ellipses have been generated, left click on any ellipses that did not perform well to delete them. When you are finshed, click ok in the dialog box.</p>
+<p>9. Then, a file picker will prompt you to pick a directory to save the generated images and csv files. The folder name will be the name of the image you are processing.</p>
+<p>10. Look in the directory you specified to save the images to see the results.</p>
   
 <h2>💻 Built with</h2>
 
