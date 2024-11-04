@@ -1,11 +1,3 @@
-/*
- * To the extent possible under law, the ImageJ developers have waived
- * all copyright and related or neighboring rights to this tutorial code.
- *
- * See the CC0 1.0 Universal license for details:
- *     http://creativecommons.org/publicdomain/zero/1.0/
- */
-
 package CollagenAnalysis;
 
 import ij.IJ;
@@ -207,7 +199,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         //EM Stem
         IJ.log("Fitting Gaussian Mixture Model...");
         GaussianMixtureModel gmm = new GaussianMixtureModel(convertedCentroids.length, fibrilPixelsThinned, centroidsIdxThinned);
-        gmm.EM(false, 50);
+        gmm.EM(false, TOTAL_ITERATIONS);
 
         //ImageProcessor boundryIp = imgAfterGausFiltering.getProcessor();
         //this is only used to calculate the contour lines but excluding this for right now, takes too much processing
@@ -237,13 +229,13 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         IJ.showStatus("Preparing Overlayed Images...");
         IJ.log("Preparing Images...");
 
-        OverlayManager.overlayCentroids(contour, gmm.getMus(), Color.red.getRGB()); // gmm centroids red
-        OverlayManager.overlayCentroids(contour, convertedCentroids, Color.magenta.getRGB()); // voronoi centroids magenta
-        OverlayManager.overlayVoronoi(contour, vm.voronoi, cyan.getRGB());
+        //OverlayManager.overlayCentroids(contour, gmm.getMus(), Color.red.getRGB()); // gmm centroids red
+        //OverlayManager.overlayCentroids(contour, convertedCentroids, Color.magenta.getRGB()); // voronoi centroids magenta
+        //OverlayManager.overlayVoronoi(contour, vm.voronoi, cyan.getRGB());
         //OverlayManager.overlayContourLines(contour, post_all, Color.blue.getRGB());
 
         //OverlayManager.overlayContourLines(contour_lines, post_all, Color.blue.getRGB());
-        OverlayManager.overlayCentroids(contour_lines, gmm.getMus(), Color.red.getRGB()); // gmm centroids red
+        //OverlayManager.overlayCentroids(contour_lines, gmm.getMus(), Color.red.getRGB()); // gmm centroids red
 
 
         OverlayManager.overlayVoronoi(correctedVoronoiOverlay, vm.init_voronoi, cyan.getRGB()); //overlay corrected voronoi over initial guess of voronoi
@@ -259,7 +251,8 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         ImagePlus correctedVoronoiImage = new ImagePlus("Corrected Voronoi", correctedVoronoiOverlay);
         //imageManager.showScaledUp(contourLinesImage);
         //imageManager.showScaledUp(overlayImage);
-        imageManager.showScaledUp(correctedVoronoiImage);
+        //imageManager.showScaledUp(correctedVoronoiImage);
+        correctedVoronoiImage.show();
         //imagesToSave.add(overlayImage);
         //imagesToSave.add(contourLinesImage);
         imagesToSave.add(correctedVoronoiImage);
@@ -268,14 +261,12 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
         IJ.showStatus("Fitting Ellipses...");
         IJ.log("Fitting Ellipses...");
 
-        //gmm centroids or user corrected centroids?
-        //TODO: figure this out, test both. right now using vm centroids
-        ArrayList<double[]> centroidsFromGmm = convertToArrayList(gmm.getMus());
+        //ArrayList<double[]> centroidsFromGmm = convertToArrayList(gmm.getMus());
         ArrayList<double[]> centroidsFromVoronoi = vm.getCentroids();
         ArrayList<double[]> nonBoundryCentroids = vm.identifyBoundaryFibrils(imageManager.exclusionMask);
-        ArrayList<Boolean> isBoundryCentroid = vm.identifyBoundaryFibrilsBoolean(imageManager.exclusionMask);
+        //ArrayList<Boolean> isBoundryCentroid = vm.identifyBoundaryFibrilsBoolean(imageManager.exclusionMask);
 
-        EllipseFitting ef = new EllipseFitting(originalImgScaled, fibrilPixels, centroidsFromVoronoi , clusterAssignments, post_fibril, gmm.getComponentProportions() ,  nonBoundryCentroids);
+        EllipseFitting ef = new EllipseFitting(originalImgScaled, fibrilPixels, centroidsFromVoronoi , clusterAssignments, post_fibril, nonBoundryCentroids);
         ef.fitEllipses();
 
         //user can delete ellipses that did not perform well
@@ -295,18 +286,29 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         //Ellipse data
         ArrayList<Ellipse> ellipses = ef.fibrilEllipses;
+        //GMM data
+        double[][] gmmMus = gmm.getMus();
+        double[][][] gmmCov = gmm.getCovariances();
+        double[] gmmComp = gmm.getComponentProportions();
 
         //ellipse scaling
         for(Ellipse e : ellipses){
             e.scale(scale);
         }
 
-        //gmm scaling
-        //double[] area_pix2 = computeFibrilArea(post_fibril, scale, nonBoundryCentroids.size());
+        //GMM scaling
+        // Scale gmmMus (means)
+        for (int i = 0; i < gmmMus.length; i++) {
+            gmmMus[i][0] *= scale; // Scale X component
+            gmmMus[i][1] *= scale; // Scale Y component
+        }
 
-        ArrayList<Double> areaFromEllipse_pix2 = ef.area_pix;
-        for(int i = 0; i < areaFromEllipse_pix2.size(); i++){
-            areaFromEllipse_pix2.set(i, areaFromEllipse_pix2.get(i) * Math.pow(scale, 2));
+        // Scale gmmCov (covariances)
+        for (int i = 0; i < gmmCov.length; i++) {
+            gmmCov[i][0][0] *= scale * scale; // Scale XX component
+            gmmCov[i][0][1] *= scale * scale; // Scale XY component
+            gmmCov[i][1][0] *= scale * scale; // Scale XY component (symmetric)
+            gmmCov[i][1][1] *= scale * scale; // Scale YY component
         }
 
         // converting from pixels to nm
@@ -332,20 +334,20 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
             }
 
             try{
-                File Results_In_Pixels = new File(newFolderPath.toString() + File.separator + "Results_In_Pixels.csv");
+                File Results_In_Pixels = new File(newFolderPath.toString() + File.separator + "Results_in_pixels.csv");
                 if(Results_In_Pixels.delete()){
                     Results_In_Pixels.createNewFile();
                 }
                 FileWriter out = new FileWriter(Results_In_Pixels);
 
                 //column attribute of csv file
-                for(int i = 0;i < pixelCsvHeader.length; i++){
+                for(int i = 0;i < pixelsCsvHeader.length; i++){
                     //do not add comma if it is the last header in the list
-                    if(i < pixelCsvHeader.length - 1){
-                        out.append(pixelCsvHeader[i]).append(delimiter);
+                    if(i < pixelsCsvHeader.length - 1){
+                        out.append(pixelsCsvHeader[i]).append(delimiter);
                     }
                     else{
-                        out.append(pixelCsvHeader[i]);
+                        out.append(pixelsCsvHeader[i]);
                     }
                 }
                 //end of header
@@ -354,16 +356,12 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                 //write each row
                 for(Ellipse e : ellipses){
                     out.append(formatField(e.postProbArea)).append(delimiter);
+                    out.append(formatField(e.area)).append(delimiter);
                     out.append(formatField(e.majorRadius)).append(delimiter);
                     out.append(formatField(e.minorRadius)).append(delimiter);
                     out.append(formatField(e.angle)).append(delimiter);
-                    out.append(formatField(e.x)).append(delimiter);
-                    out.append(formatField(e.y)).append(delimiter);
-                    out.append(formatField(e.cov[0][0])).append(delimiter);
-                    out.append(formatField(e.cov[0][1])).append(delimiter);
-                    out.append(formatField(e.cov[1][1])).append(delimiter);
-                    out.append(formatField(e.componentProportion)).append(newLine);
-
+                    out.append(formatField(e.centerX)).append(delimiter);
+                    out.append(formatField(e.centerY)).append(newLine);
                 }
 
                 out.close();
@@ -373,7 +371,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
             }
 
             try{
-                File Results_In_Nm = new File(newFolderPath.toString() + File.separator + "Results_In_Nm.csv");
+                File Results_In_Nm = new File(newFolderPath.toString() + File.separator + "Results_in_nm.csv");
                 if(Results_In_Nm.delete()){
                     Results_In_Nm.createNewFile();
                 }
@@ -392,6 +390,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                 out2.append(newLine);
 
                 for(Ellipse e : ellipses){
+                   out2.append(formatField(e.postProbArea_nm)).append(delimiter);
                    out2.append(formatField(e.area_nm)).append(delimiter);
                    out2.append(formatField(e.majorRadius_nm)).append(delimiter);
                    out2.append(formatField(e.minorRadius_nm)).append(delimiter);
@@ -403,11 +402,46 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
                 e.printStackTrace();
             }
 
+            try{
+                File Results_GaussianMixture = new File(newFolderPath.toString() + File.separator + "Results_GaussianMixture.csv");
+                if(Results_GaussianMixture.delete()){
+                    Results_GaussianMixture.createNewFile();
+                }
+                FileWriter out3 = new FileWriter(Results_GaussianMixture);
+                //header for nm file
+                for(int i = 0;i < gaussianMixtureCsvHeader.length; i++){
+                    //do not add comma if it is the last header in the list
+                    if(i < gaussianMixtureCsvHeader.length - 1){
+                        out3.append(gaussianMixtureCsvHeader[i]).append(delimiter);
+                    }
+                    else{
+                        out3.append(gaussianMixtureCsvHeader[i]);
+                    }
+                }
+                //end of header
+                out3.append(newLine);
+
+                for(int i = 0; i < gmm.getMus().length; i++){
+                    out3.append(formatField(gmmMus[i][0])).append(delimiter);
+                    out3.append(formatField(gmmMus[i][1])).append(delimiter);
+                    out3.append(formatField(gmmCov[i][0][0])).append(delimiter);
+                    out3.append(formatField(gmmCov[i][0][1])).append(delimiter);
+                    out3.append(formatField(gmmCov[i][1][1])).append(delimiter);
+                    out3.append(formatField(gmmComp[i])).append(newLine);
+                }
+                out3.close();
+
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+
 
             //save images to path specified from user
             for(ImagePlus image: imagesToSave){
-                imageManager.scaleUp(image);
                 String fileName = image.getTitle();
+                if(!fileName.equals("Ellipse Fitting") && !fileName.equals("Corrected Voronoi")){
+                    imageManager.scaleUp(image);
+                }
                 String savePath = newFolderPath.resolve(fileName + ".tiff").toString();
                 FileSaver fileSaver = new FileSaver(image);
                 if(fileSaver.saveAsTiff(savePath)){
@@ -521,7 +555,7 @@ public class CollagenAnalysisPlugin implements PlugInFilter {
 
         //TEM_4.jpg
         //L3915_3c_BA190R-1.tif
-        ImagePlus image = IJ.openImage("/Users/tywatson/development/repos/Rego-Imagej-pluggin/testimages/Adventitia_RIRII.tif");
+        ImagePlus image = IJ.openImage("/Users/tywatson/development/repos/Rego-Imagej-pluggin/testimages/TEM_4.jpg");
         //ImagePlus image = IJ.openImage("C:\\Users\\tywat\\Downloads\\Adventitia_RIRII.tif");
         image.show();
         // run the plugin

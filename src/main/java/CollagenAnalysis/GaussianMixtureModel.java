@@ -2,15 +2,22 @@ package CollagenAnalysis;
 
 import ij.IJ;
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
+import org.apache.commons.math3.linear.LUDecomposition;
 import org.apache.commons.math3.linear.RealMatrix;
 
 import java.util.ArrayList;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.IntStream;
+
+import static CollagenAnalysis.Constants.blockSize;
+import static CollagenAnalysis.Constants.maxCentroidThreshold;
 
 public class GaussianMixtureModel {
     private final double regularizationValue = .1;
     private final int centroidLength;
     private final double[][] fibrilPixelsThinned;
+    private final double[] fibrilPixelX;
+    private final double[] fibrilPixelY;
     private double[] centroidsIdxThinned;
     private double[][] mus;
     private double[][][] covariance;
@@ -21,10 +28,18 @@ public class GaussianMixtureModel {
     public double[] componentProportions;
     private int[] numberOfPixelsForEachCentroid;
     private ArrayList<double[]> fibrilPixelsForThisCentroid = new ArrayList<double[]>();
-
+    // Create a ForkJoinPool to control parallelism level explicitly
+    ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
     public GaussianMixtureModel(int centroidLength, double[][] fibrilPixelsThinned, double[] centroidIdx){
         this.centroidLength = centroidLength;
         this.fibrilPixelsThinned = fibrilPixelsThinned;
+        this.fibrilPixelX = new double[fibrilPixelsThinned.length];
+        this.fibrilPixelY = new double[fibrilPixelsThinned.length];
+        // Cache fibrilPixelsThinned data locally
+        for (int j = 0; j < fibrilPixelsThinned.length; j++) {
+            fibrilPixelX[j] = fibrilPixelsThinned[j][0];
+            fibrilPixelY[j] = fibrilPixelsThinned[j][1];
+        }
         this.centroidsIdxThinned = centroidIdx;
         pdf_values = new double[this.centroidLength][fibrilPixelsThinned.length];
         p = new double[this.centroidLength][fibrilPixelsThinned.length];
@@ -63,8 +78,8 @@ public class GaussianMixtureModel {
         }
         else{
             for(int k = 0; k < totalIterations / 2; k++){
-                System.out.printf("Step %d out of %d \n", k, totalIterations);
-                IJ.log("step " + k + " out of " + totalIterations);
+                //System.out.printf("Step %d out of %d \n", k, totalIterations);
+                //IJ.log("step " + k + " out of " + totalIterations);
                 //progressBar.setStatus("Fitting Gaussian mixture model");
                 IJ.showStatus("Fitting Gaussian Mixture Model");
 
@@ -72,8 +87,13 @@ public class GaussianMixtureModel {
                 //use the initial guess of prob matrix first because component proportions have not been calculated yet
                 if(k != 0)
                     calculatePosteriorProbabilityMatrix();
+
                 // M step: Accumulate sums for updating mu
-                mStep(k, totalIterations, true);
+                if ((centroidLength > maxCentroidThreshold)) {
+                    mStepBlockApproach(k, totalIterations, true);
+                } else {
+                    mStep(k, totalIterations, true);
+                }
                 // Update the progress bar after each iteration
                 //progressBar.setProgress(k, totalIterations);
                 IJ.showProgress(k, totalIterations);
@@ -84,8 +104,8 @@ public class GaussianMixtureModel {
 
             // Second phase of EM algorithm: Adjust Sigma and ComponentProportion, keeping mu fixed
             for(int k = totalIterations / 2; k < totalIterations + 1; k++) {
-                System.out.printf("Step %d out of %d \n", k, totalIterations);
-                IJ.log("step " + k + " out of " + totalIterations);
+                //System.out.printf("Step %d out of %d \n", k, totalIterations);
+                //IJ.log("step " + k + " out of " + totalIterations);
                 // Reset sums for each iteration
                 //double[] sumP = new double[centroidLength];
 
@@ -93,7 +113,11 @@ public class GaussianMixtureModel {
                 calculatePosteriorProbabilityMatrix();
 
                 // M-step: Update covariance matrices
-                mStep(k, totalIterations, false);
+                if ((centroidLength > maxCentroidThreshold)) {
+                    mStepBlockApproach(k, totalIterations, false);
+                } else {
+                    mStep(k, totalIterations, false);
+                }
 
                 // Update the progress bar after each iteration
                 //progressBar.setProgress(k, totalIterations);
@@ -110,39 +134,38 @@ public class GaussianMixtureModel {
     }
 
     private void mStep(int k, int totalIterations,  boolean adjustMu){
-        double[] sumP = new double[centroidLength];
-        double[] sumPxX = new double[centroidLength];
-        double[] sumPxY = new double[centroidLength];
-
-
         // M step: Accumulate sums for updating mu
         IntStream.range(0, centroidLength).parallel().forEach(i -> {
+            double[] p_i = p[i]; // Local copy of p[i] to reduce access to the large shared array
+            double sumP_i = 0;
+            double sumPxX_i = 0;
+            double sumPxY_i = 0;
             double[][] cov = new double[2][2];
 
             for(int j = 0; j < fibrilPixelsThinned.length; j++){
-                sumP[i] += p[i][j];
+                sumP_i += p_i[j];
                 if(adjustMu){
-                    sumPxX[i] += p[i][j] * fibrilPixelsThinned[j][0];
-                    sumPxY[i] += p[i][j] * fibrilPixelsThinned[j][1];
+                    sumPxX_i += p_i[j] * fibrilPixelX[j];
+                    sumPxY_i += p_i[j] * fibrilPixelY[j];
                 }
                 else{
-                    double dx = fibrilPixelsThinned[j][0] - mus[i][0];
-                    double dy = fibrilPixelsThinned[j][1] - mus[i][1];
+                    double dx = fibrilPixelX[j] - mus[i][0];
+                    double dy = fibrilPixelY[j] - mus[i][1];
 
-                    cov[0][0] += p[i][j] * dx * dx; // Variance in X
-                    cov[1][1] += p[i][j] * dy * dy; // Variance in Y
-                    cov[0][1] += p[i][j] * dx * dy; // Covariance XY
+                    cov[0][0] += p_i[j] * dx * dx; // Variance in X
+                    cov[1][1] += p_i[j] * dy * dy; // Variance in Y
+                    cov[0][1] += p_i[j] * dx * dy; // Covariance XY
                     cov[1][0] = cov[0][1]; // Symmetric
                 }
             }
-            componentProportions[i] = sumP[i] / fibrilPixelsThinned.length;
+            componentProportions[i] = sumP_i / fibrilPixelsThinned.length;
             // Update mu for each centroid
             if(adjustMu){
-                double[] updatedMu = new double[]{sumPxX[i] / sumP[i], sumPxY[i] / sumP[i]};
+                double[] updatedMu = new double[]{sumPxX_i / sumP_i, sumPxY_i / sumP_i};
                 mus[i] = updatedMu;
 
-                if(k == totalIterations / 2 -1)
-                    System.out.printf("Updated Mu for centroid %d: [%f, %f] \n", i, updatedMu[0], updatedMu[1]);
+                //if(k == totalIterations / 2 -1)
+                    //System.out.printf("Updated Mu for centroid %d: [%f, %f] \n", i, updatedMu[0], updatedMu[1]);
             }
             else{
                 // Add regularization value to the diagonal elements
@@ -150,13 +173,13 @@ public class GaussianMixtureModel {
                 cov[1][1] += regularizationValue;
 
                 // Normalize and update the covariance matrix for this centroid
-                cov[0][0] /= sumP[i];
-                cov[1][1] /= sumP[i];
-                cov[0][1] /= sumP[i];
+                cov[0][0] /= sumP_i;
+                cov[1][1] /= sumP_i;
+                cov[0][1] /= sumP_i;
                 cov[1][0] = cov[0][1];
                 covariance[i] =  cov;
-                if(k == totalIterations)
-                    System.out.printf("updated Covariance for centroid %d: [%f, %f][%f, %f] \n", i, cov[0][0], cov[0][1], cov[1][0], cov[1][1]);
+                //if(k == totalIterations)
+                    //System.out.printf("updated Covariance for centroid %d: [%f, %f][%f, %f] \n", i, cov[0][0], cov[0][1], cov[1][0], cov[1][1]);
 
             }
 
@@ -165,9 +188,67 @@ public class GaussianMixtureModel {
                 pdf_values[i][j] = mvnpdf(fibrilPixelsThinned[j], mus[i], covariance[i]);
             }
         });
+    }
+    private void mStepBlockApproach(int k, int totalIterations,  boolean adjustMu){
+        // Divide work into blocks and process each in parallel
+        for (int blockStart = 0; blockStart < centroidLength; blockStart += blockSize) {
+            int blockEnd = Math.min(blockStart + blockSize, centroidLength);
+            IntStream.range(blockStart, blockEnd).parallel().forEach(i -> {
+                // Your processing logic for each centroid within the block
+                // Accumulate results for the centroid indexed by i
+                double[] p_i = p[i]; // Local copy of p[i] to reduce access to the large shared array
+                double sumP_i = 0;
+                double sumPxX_i = 0;
+                double sumPxY_i = 0;
+                double[][] cov = new double[2][2];
 
+                for(int j = 0; j < fibrilPixelsThinned.length; j++){
+                    sumP_i += p_i[j];
+                    if(adjustMu){
+                        sumPxX_i += p_i[j] * fibrilPixelX[j];
+                        sumPxY_i += p_i[j] * fibrilPixelY[j];
+                    }
+                    else{
+                        double dx = fibrilPixelX[j] - mus[i][0];
+                        double dy = fibrilPixelY[j] - mus[i][1];
 
+                        cov[0][0] += p_i[j] * dx * dx; // Variance in X
+                        cov[1][1] += p_i[j] * dy * dy; // Variance in Y
+                        cov[0][1] += p_i[j] * dx * dy; // Covariance XY
+                        cov[1][0] = cov[0][1]; // Symmetric
+                    }
+                }
+                componentProportions[i] = sumP_i / fibrilPixelsThinned.length;
+                // Update mu for each centroid
+                if(adjustMu){
+                    double[] updatedMu = new double[]{sumPxX_i / sumP_i, sumPxY_i / sumP_i};
+                    mus[i] = updatedMu;
 
+                    //if(k == totalIterations / 2 -1)
+                    //System.out.printf("Updated Mu for centroid %d: [%f, %f] \n", i, updatedMu[0], updatedMu[1]);
+                }
+                else{
+                    // Add regularization value to the diagonal elements
+                    cov[0][0] += regularizationValue;
+                    cov[1][1] += regularizationValue;
+
+                    // Normalize and update the covariance matrix for this centroid
+                    cov[0][0] /= sumP_i;
+                    cov[1][1] /= sumP_i;
+                    cov[0][1] /= sumP_i;
+                    cov[1][0] = cov[0][1];
+                    covariance[i] =  cov;
+                    //if(k == totalIterations)
+                    //System.out.printf("updated Covariance for centroid %d: [%f, %f][%f, %f] \n", i, cov[0][0], cov[0][1], cov[1][0], cov[1][1]);
+
+                }
+
+                //update pdf values
+                for(int j = 0; j < fibrilPixelsThinned.length; j++){
+                    pdf_values[i][j] = mvnpdf(fibrilPixelsThinned[j], mus[i], covariance[i]);
+                }
+            });
+        }
 
     }
 
@@ -463,8 +544,8 @@ public class GaussianMixtureModel {
         RealMatrix sigmaMatrix = new Array2DRowRealMatrix(sigma);
 
         // Calculate determinant and inverse of sigma
-        double sigmaDet = new org.apache.commons.math3.linear.LUDecomposition(sigmaMatrix).getDeterminant();
-        RealMatrix sigmaInverse = new org.apache.commons.math3.linear.LUDecomposition(sigmaMatrix).getSolver().getInverse();
+        double sigmaDet = new LUDecomposition(sigmaMatrix).getDeterminant();
+        RealMatrix sigmaInverse = new LUDecomposition(sigmaMatrix).getSolver().getInverse();
 
         // Calculate the log of the normalization factor
         double logNormalizationFactor = -0.5 * (k * Math.log(2 * Math.PI) + Math.log(sigmaDet));
@@ -490,4 +571,5 @@ public class GaussianMixtureModel {
     public double[] getComponentProportions() {
         return componentProportions;
     }
+    public double[][][] getCovariances(){return covariance;}
 }

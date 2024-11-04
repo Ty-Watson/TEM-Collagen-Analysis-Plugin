@@ -10,12 +10,15 @@ public class Ellipse {
     double[] yEllipse;
 
     public double x;
-
+    //center of ellipse coordinates
+    public double centerX;
+    public double centerY;
     public double y;
     public double aspectRatio;
     public double area;
-    public double postProbArea;
     public double area_nm;
+    public double postProbArea;
+    public double postProbArea_nm;
     public double angle;
     public double majorRadius;
     public double minorRadius;
@@ -34,25 +37,21 @@ public class Ellipse {
 
         // Prepare the coordinates for drawing
         for (int j = 0; j < DEGREES; j++) {
-            //have to scale up the ellipse to show user on the full image
+            //have to scale up the ellipse coordinates to show user on the full image
             xPoints[j] = (int) Math.round(xEllipse[j] * SCALE);
             yPoints[j] = (int) Math.round(yEllipse[j] * SCALE);
         }
 
         // Create a polygon from the ellipse points
         ellipsePolygon = new Polygon(xPoints, yPoints, DEGREES);
+        //get center coordinates from generated ellipse
+        centerX = ellipsePolygon.getBounds2D().getCenterX();
+        centerY = ellipsePolygon.getBounds2D().getCenterY();
+
 
     }
 
     public void scale(int scale){
-        // Scale center point of the ellipse
-        x *= scale;
-        y *= scale;
-
-        // Scale the mean vector (mu)
-        mu[0] *= scale;  // Scale x component of the mean
-        mu[1] *= scale;  // Scale y component of the mean
-
         // Scale radii
         majorRadius *= scale;
         minorRadius *= scale;
@@ -67,22 +66,11 @@ public class Ellipse {
             xEllipse[i] *= scale;
             yEllipse[i] *= scale;
         }
-
-        // Scale the covariance matrix (cov)
-        for (int i = 0; i < cov.length; i++) {
-            for (int j = 0; j < cov[i].length; j++) {
-                cov[i][j] *= Math.pow(scale, 2);
-            }
-        }
-        componentProportion *= scale;
-
-        // Update the polygon after scaling
-        //generateEllipsePolygon();
     }
     public void convertToNM(double nanometers_over_pixels){
+        postProbArea_nm = postProbArea * Math.pow(nanometers_over_pixels, 2);
         //this is using major and minor radius to calculate area
-        //area_nm = area * Math.pow(nanometers_over_pixels, 2);
-        area_nm = postProbArea * Math.pow(nanometers_over_pixels, 2);
+        area_nm = area * Math.pow(nanometers_over_pixels, 2);
         majorRadius_nm = majorRadius * nanometers_over_pixels;
         minorRadius_nm = minorRadius * nanometers_over_pixels;
     }

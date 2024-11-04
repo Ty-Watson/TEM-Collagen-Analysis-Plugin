@@ -1,14 +1,7 @@
 package CollagenAnalysis;
 
-import ij.ImagePlus;
 import ij.process.ImageProcessor;
-import org.apache.commons.math3.linear.Array2DRowRealMatrix;
-import org.apache.commons.math3.linear.RealMatrix;
-
-import java.awt.*;
 import java.util.ArrayList;
-
-import static CollagenAnalysis.Constants.pointSize;
 
 public class FibrilUtils {
     private final double regularizationValue = 0.1;

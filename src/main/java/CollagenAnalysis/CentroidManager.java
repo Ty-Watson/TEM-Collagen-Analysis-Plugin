@@ -14,13 +14,8 @@ import org.apache.commons.math3.analysis.solvers.LaguerreSolver;
 import org.apache.commons.math3.complex.Complex;
 import org.apache.commons.math3.fitting.PolynomialCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
-
-
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
-
-import static CollagenAnalysis.Constants.pointSize;
 import static CollagenAnalysis.ImageProcessingUtils.countNonZeroPixels;
 import static CollagenAnalysis.ImageProcessingUtils.derivePolynomial;
 import static CollagenAnalysis.ImageProcessingUtils.squarePolynomial;

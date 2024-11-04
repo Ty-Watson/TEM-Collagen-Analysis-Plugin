@@ -33,6 +33,7 @@ public class ImageManager {
         this.ip = imp.getProcessor();
         this.height = ip.getHeight();
         this.width = ip.getWidth();
+        PointDrawer.adjustSizes(width, height);
     }
     public void scaleDown(){
         while(height >= 1000 || width >= 1000){

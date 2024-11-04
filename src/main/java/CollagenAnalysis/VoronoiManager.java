@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static CollagenAnalysis.Constants.SCALE;
-import static CollagenAnalysis.Constants.pointSize;
 import static CollagenAnalysis.ImageProcessingUtils.findNearestCentroid;
 
 
@@ -130,8 +129,9 @@ public class VoronoiManager {
                 Point scaledB = new Point(edge.getB().getLocation().x / SCALE, edge.getB().getLocation().y / SCALE);
 
                 //scale down these values because the voronoi edge sites are coming from full image
-                Point site1 = new Point(edge.getSite1().x / 2, edge.getSite1().y / 2);
-                Point site2 = new Point(edge.getSite2().x / 2, edge.getSite2().y / 2);
+                Point site1 = new Point(edge.getSite1().x / SCALE, edge.getSite1().y / SCALE);
+
+                Point site2 = new Point(edge.getSite2().x / SCALE, edge.getSite2().y / SCALE);
 
                 cells.computeIfAbsent(site1, k -> new HashSet<>()).add(new Vertex(scaledA));
                 cells.computeIfAbsent(site1, k -> new HashSet<>()).add(new Vertex(scaledB));
@@ -222,18 +222,7 @@ public class VoronoiManager {
             double x = point[0] * SCALE;
             double y = point[1] * SCALE;
 
-            // Draw a circle or a larger point at (x, y) in red
-            for (int dx = -pointSize; dx <= pointSize; dx++) {
-                for (int dy = -pointSize; dy <= pointSize; dy++) {
-                    if (dx * dx + dy * dy <= pointSize * pointSize) {
-                        double newX = x + dx;
-                        double newY = y + dy;
-                        if (newX >= 0 && newX < colorProcessor.getWidth() && newY >= 0 && newY < colorProcessor.getHeight()) {
-                            colorProcessor.set((int)newX, (int)newY, color);
-                        }
-                    }
-                }
-            }
+            PointDrawer.drawCross(colorProcessor,x,y);
         }
 
         // Display the result

@@ -8,18 +8,13 @@ import ij.ImagePlus;
 import ij.gui.Line;
 import ij.gui.Overlay;
 import ij.process.*;
-
-import java.awt.*;
 import java.awt.geom.GeneralPath;
 import java.util.ArrayList;
 
 import static CollagenAnalysis.Constants.SCALE;
-import static CollagenAnalysis.Constants.pointSize;
-import static CollagenAnalysis.EllipseFitting.DEGREES;
 import ij.process.ImageProcessor;
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.util.ArrayList;
 
 public  class OverlayManager {
 
@@ -269,18 +264,7 @@ public  class OverlayManager {
             double x = point[0] * SCALE;
             double y = point[1] * SCALE;
 
-            // Draw a circle or a larger point at (x, y) in red
-            for (int dx = -pointSize; dx <= pointSize; dx++) {
-                for (int dy = -pointSize; dy <= pointSize; dy++) {
-                    if (dx * dx + dy * dy <= pointSize * pointSize) {
-                        double newX = x + dx;
-                        double newY = y + dy;
-                        if (newX >= 0 && newX < ip.getWidth() && newY >= 0 && newY < ip.getHeight()) {
-                            ip.set((int)newX, (int)newY, color);
-                        }
-                    }
-                }
-            }
+            PointDrawer.drawCross(ip, x, y, color);
         }
     }
     public static void overlayPixels(ImageProcessor ip, double[][] pixels, int color){
